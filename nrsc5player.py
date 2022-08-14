@@ -206,10 +206,9 @@ class NRSC5player:
         except nrsc5.NRSC5Error as error:
             logging.info("Error: %s", str(error))
             self.ui.setstatus("Error: %s", str(error))
-            
+
         logging.info("Tuning %s", self.frequency)
         self.ui.setstatus("Tuning %s", self.frequency)
-
 
     def stop(self):
         self.ui.setstatus("Stopping")
@@ -251,7 +250,12 @@ class NRSC5player:
             if samples is None:
                 break
             if stream:
-                stream.write(samples)
+                if self.volume < 1:
+                    decodeddata = numpy.fromstring(samples, numpy.int16)
+                    newdata = (decodeddata * self.volume).astype(numpy.int16)
+                    stream.write(newdata.tostring())
+                else:
+                    stream.write(samples)
             self.audio_queue.task_done()
 
         if stream:
