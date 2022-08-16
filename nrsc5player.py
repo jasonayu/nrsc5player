@@ -162,8 +162,8 @@ class NRSC5player:
 
     def setprogram(self, programindex):
         if programindex != self.program and programindex in self.programs:
-            with self.audio_queue.mutex:
-                self.audio_queue.queue.clear()
+            #with self.audio_queue.mutex:
+            #    self.audio_queue.queue.clear()
             logging.info("Program %s", programindex)
             self.program = programindex
             self.ui.setprogramname(self.programs[programindex])
