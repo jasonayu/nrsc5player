@@ -33,6 +33,12 @@ class NRSC5player:
         self._playing = False
 
     def resetdata(self):
+        self.audio_queues = {
+            0: queue.Queue(maxsize=64),
+            1: queue.Queue(maxsize=64),
+            2: queue.Queue(maxsize=64),
+            3: queue.Queue(maxsize=64)
+        }
         self.program = 0
         self.programs = {}
         self.logos = {}
@@ -62,8 +68,13 @@ class NRSC5player:
             self.ui.setstatus("Lost synchronization")
 
         elif evt_type == nrsc5.EventType.AUDIO:
-            if evt.program == self.program:
-                self.audio_queue.put(evt.data)
+
+            #if evt.program == self.program:
+            #    self.audio_queue.put(evt.data)
+
+            if self.audio_queues[evt.program].full():
+                self.audio_queues[evt.program].get(block=False)
+            self.audio_queues[evt.program].put(evt.data)
 
         elif evt_type == nrsc5.EventType.ID3:
             if evt.program == self.program:
@@ -235,8 +246,10 @@ class NRSC5player:
             self.radio.close()
             logging.info("self.radio.close()")
 
-            with self.audio_queue.mutex:
-                self.audio_queue.queue.clear()
+            #with self.audio_queue.mutex:
+            #    self.audio_queue.queue.clear()
+            with self.audio_queues[self.program].mutex:
+                self.audio_queues[self.program].queue.clear()
                 logging.info("self.audio_queue.queue.clear()")
 
             self._playing = False
@@ -262,8 +275,10 @@ class NRSC5player:
 
         if stream:
             while self._playing:
-                if self.audio_queue.empty() is not True:
-                    samples = self.audio_queue.get(block=False)
+                #if self.audio_queue.empty() is not True:
+                #    samples = self.audio_queue.get(block=False)
+                if self.audio_queues[self.program].empty() is not True:
+                    samples = self.audio_queues[self.program].get(block=False)
                     if samples:
                         if self.volume < 1:
                             decodeddata = numpy.fromstring(samples, numpy.int16)
@@ -271,7 +286,8 @@ class NRSC5player:
                             stream.write(newdata.tostring())
                         else:
                             stream.write(samples)
-                    self.audio_queue.task_done()
+                    #self.audio_queue.task_done()
+                    self.audio_queues[self.program].task_done()
 
             stream.stop_stream()
             stream.close()
