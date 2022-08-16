@@ -1,3 +1,5 @@
+from asyncio.windows_events import NULL
+from ctypes import WinError
 import logging
 import os
 import queue
@@ -5,41 +7,45 @@ import threading
 import pyaudio
 import numpy
 import nrsc5
+import gc
 
 
 class NRSC5player:
 
     def __init__(self):
+        logging.basicConfig(level=10,
+                            format="%(asctime)s %(message)s",
+                            datefmt="%H:%M:%S")
         if os.name == "nt":
             os.add_dll_directory(os.getcwd())
         self.radio = nrsc5.NRSC5(
             lambda evt_type, evt: self.callback(evt_type, evt))
         self.audio_queue = queue.Queue(maxsize=64)
         self.device_condition = threading.Condition()
-        self.frequency = 0
-        self.program = 0
+
         self.deviceid = 0
         self.host = None
+        self.volume = 1.0
+        self.frequency = 0
 
+        self.resetdata()
+
+        self._playing = False
+
+    def resetdata(self):
+        self.program = 0
         self.programs = {}
         self.logos = {}
-
         self.logoportmap = {}
         self.imageportmap = {}
-
         self.artist = None
         self.title = None
         self.album = None
         self.xhdr = {}
         self.albumart = {}
         self.albumartindex = {}
-
         self.station = None
         self.slogan = None
-
-        self.volume = 1.0
-
-        self._playing = False
 
     def callback(self, evt_type, evt):
 
@@ -158,6 +164,7 @@ class NRSC5player:
         if programindex != self.program and programindex in self.programs:
             with self.audio_queue.mutex:
                 self.audio_queue.queue.clear()
+            logging.info("Program %s", programindex)
             self.program = programindex
             self.ui.setprogramname(self.programs[programindex])
             self.updatealbumart(self.program)
@@ -177,11 +184,9 @@ class NRSC5player:
             logging.info("No current album art selected and no logo stored?")
 
     def run(self):
-        logging.basicConfig(level=10,
-                            format="%(asctime)s %(message)s",
-                            datefmt="%H:%M:%S")
-
         try:
+            self.resetdata()
+
             if self.host != None:
                 host = self.host
                 port = "1234"
@@ -194,6 +199,9 @@ class NRSC5player:
                 logging.info("Connecting to device %s", self.deviceid)
                 self.ui.setstatus("Connecting to device %s", self.deviceid)
                 self.radio.open(self.deviceid)
+                
+            logging.info("Tuning %s", self.frequency)
+            self.ui.setstatus("Tuning %s", self.frequency)
             self.radio.set_frequency(self.frequency)
 
             self._playing = True
@@ -207,27 +215,34 @@ class NRSC5player:
             logging.info("Error: %s", str(error))
             self.ui.setstatus("Error: %s", str(error))
 
-        logging.info("Tuning %s", self.frequency)
-        self.ui.setstatus("Tuning %s", self.frequency)
+        except WindowsError as error:
+            logging.info("Error: %s", str(error))
+            self.ui.setstatus("Error: %s", str(error))
+
 
     def stop(self):
         self.ui.setstatus("Stopping")
         logging.info("Stopping")
         if self._playing == True:
-            self._playing = False
             logging.info("self._playing = False")
+
             self.radio.stop()
             logging.info("self.radio.stop()")
+
             self.radio.set_bias_tee(0)
             logging.info("self.radio.set_bias_tee(0)")
+
             self.radio.close()
             logging.info("self.radio.close()")
 
-        with self.audio_queue.mutex:
-            self.audio_queue.queue.clear()
-            logging.info("self.audio_queue.queue.clear()")
+            with self.audio_queue.mutex:
+                self.audio_queue.queue.clear()
+                logging.info("self.audio_queue.queue.clear()")
 
-        self.audio_thread.join()
+            self._playing = False
+            
+            if self.audio_thread != None:
+                self.audio_thread.join()
 
         self.ui.setstatus("Stopped")
         logging.info("Stopped")
@@ -245,22 +260,20 @@ class NRSC5player:
             logging.warning("No audio output device available.")
             stream = None
 
-        while self._playing:
-            samples = self.audio_queue.get()
-            if samples is None:
-                break
-            if stream:
-                if self.volume < 1:
-                    decodeddata = numpy.fromstring(samples, numpy.int16)
-                    newdata = (decodeddata * self.volume).astype(numpy.int16)
-                    stream.write(newdata.tostring())
-                else:
-                    stream.write(samples)
-            self.audio_queue.task_done()
-
         if stream:
+            while self._playing:
+                if self.audio_queue.empty() is not True:
+                    samples = self.audio_queue.get(block=False)
+                    if samples:
+                        if self.volume < 1:
+                            decodeddata = numpy.fromstring(samples, numpy.int16)
+                            newdata = (decodeddata * self.volume).astype(numpy.int16)
+                            stream.write(newdata.tostring())
+                        else:
+                            stream.write(samples)
+                    self.audio_queue.task_done()
+
             stream.stop_stream()
             stream.close()
         audio.terminate()
-
         logging.info("Worker Stopped")

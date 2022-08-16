@@ -7,7 +7,6 @@ from PIL import Image, ImageTk
 import nrsc5player
 import configparser
 
-
 class MusicPlayer:
 
     def __init__(self):
@@ -29,7 +28,8 @@ class MusicPlayer:
         self.info['slogan'] = "slogan"
         self.status = None
 
-        self.player = None
+        self.player = nrsc5player.NRSC5player()
+        self.player.ui = self
 
         self.root.title(self.windowtitle)
         self.root.geometry("600x400")
@@ -241,27 +241,22 @@ class MusicPlayer:
             freq = float(self.freqvar.get())
             if freq and freq < 10000:
                 freq *= 1e6
-            if self.player != None and self.player.frequency != freq:
+            if self.player.frequency != freq:
                 self.stop()
-            if self.player == None:
-                self.saveconfig()
-                self.resetdisplay()
-                self.player = nrsc5player.NRSC5player()
-                self.player.ui = self
-                self.player.program = 0
-                self.player.frequency = freq
-                self.player.volume = self.volumevar.get()
-                if self.hostvar.get():
-                    self.player.host = self.hostvar.get()
-                #self.player_thread = threading.Thread(target=self.player.run)
-                #self.player_thread.start()
-                self.player.run()
+            
+            self.saveconfig()
+            self.resetdisplay()
+            self.player.program = 0
+            self.player.frequency = freq
+            self.player.volume = self.volumevar.get()
+            if self.hostvar.get():
+                self.player.host = self.hostvar.get()
+            #self.player_thread = threading.Thread(target=self.player.run)
+            #self.player_thread.start()
+            self.player.run()
 
     def stop(self):
-        if self.player != None:
-            self.player.stop()
-            del self.player
-            self.player = None
+        self.player.stop()
         self.resetdisplay()
         self.updatewindowtitle()
 
