@@ -3,7 +3,6 @@
 from tkinter import *
 from tkinter import ttk
 from PIL import Image, ImageTk
-#import threading
 import nrsc5player
 import configparser
 
@@ -251,8 +250,6 @@ class MusicPlayer:
             self.player.volume = self.volumevar.get()
             if self.hostvar.get():
                 self.player.host = self.hostvar.get()
-            #self.player_thread = threading.Thread(target=self.player.run)
-            #self.player_thread.start()
             self.player.run()
 
     def stop(self):
