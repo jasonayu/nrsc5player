@@ -7,13 +7,12 @@ import threading
 import pyaudio
 import numpy
 import nrsc5
-import gc
 
 
 class NRSC5player:
 
     def __init__(self):
-        logging.basicConfig(level=10,
+        logging.basicConfig(level=0,
                             format="%(asctime)s %(message)s",
                             datefmt="%H:%M:%S")
         if os.name == "nt":
@@ -28,16 +27,19 @@ class NRSC5player:
         self.volume = 1.0
         self.frequency = 0
 
+        self.bufferlength = 256
+        self.bufferthresh = 60
+
         self.resetdata()
 
         self._playing = False
 
     def resetdata(self):
         self.audio_queues = {
-            0: queue.Queue(maxsize=64),
-            1: queue.Queue(maxsize=64),
-            2: queue.Queue(maxsize=64),
-            3: queue.Queue(maxsize=64)
+            0: queue.Queue(maxsize=self.bufferlength),
+            1: queue.Queue(maxsize=self.bufferlength),
+            2: queue.Queue(maxsize=self.bufferlength),
+            3: queue.Queue(maxsize=self.bufferlength)
         }
         self.program = 0
         self.programs = {}
@@ -52,6 +54,7 @@ class NRSC5player:
         self.albumartindex = {}
         self.station = None
         self.slogan = None
+        self.initialbuffer = False
 
     def callback(self, evt_type, evt):
 
@@ -69,12 +72,34 @@ class NRSC5player:
 
         elif evt_type == nrsc5.EventType.AUDIO:
 
+            logging.info("Current: %d, 0: %d, 1: %d, 2: %d, 3: %d",
+                        self.program,
+                        self.audio_queues[0].qsize(),
+                        self.audio_queues[1].qsize(),
+                        self.audio_queues[2].qsize(),
+                        self.audio_queues[3].qsize())
+
             #if evt.program == self.program:
             #    self.audio_queue.put(evt.data)
+            try:
+                self.audio_queues[evt.program].put(evt.data)
+            except Exception as error:
+                logging.info("Error: %s", str(error))
 
-            if self.audio_queues[evt.program].full():
-                self.audio_queues[evt.program].get(block=False)
-            self.audio_queues[evt.program].put(evt.data)
+            if evt.program != self.program:
+                while self.audio_queues[evt.program].qsize() > self.bufferthresh:
+                    try:
+                        self.audio_queues[evt.program].get(block=False)
+                    except Exception as error:
+                        logging.info("Error: %s", str(error))
+                    else:
+                        self.audio_queues[evt.program].task_done()
+        
+            #el
+            if self.audio_queues[0].qsize() >= self.bufferthresh and not self.initialbuffer:
+                self.initialbuffer = True
+
+                
 
         elif evt_type == nrsc5.EventType.ID3:
             if evt.program == self.program:
@@ -192,12 +217,11 @@ class NRSC5player:
             self.ui.setalbumartdata(self.logos[programindex])
         else:
             self.ui.setalbumartdata(None)
-            logging.info("No current album art selected and no logo stored?")
+            #logging.info("No current album art selected and no logo stored?")
 
     def run(self):
+        self.resetdata()
         try:
-            self.resetdata()
-
             if self.host != None:
                 host = self.host
                 port = "1234"
@@ -210,7 +234,7 @@ class NRSC5player:
                 logging.info("Connecting to device %s", self.deviceid)
                 self.ui.setstatus("Connecting to device %s", self.deviceid)
                 self.radio.open(self.deviceid)
-                
+
             logging.info("Tuning %s", self.frequency)
             self.ui.setstatus("Tuning %s", self.frequency)
             self.radio.set_frequency(self.frequency)
@@ -222,11 +246,7 @@ class NRSC5player:
 
             self.radio.start()
 
-        except nrsc5.NRSC5Error as error:
-            logging.info("Error: %s", str(error))
-            self.ui.setstatus("Error: %s", str(error))
-
-        except WindowsError as error:
+        except Exception as error:
             logging.info("Error: %s", str(error))
             self.ui.setstatus("Error: %s", str(error))
 
@@ -235,16 +255,13 @@ class NRSC5player:
         self.ui.setstatus("Stopping")
         logging.info("Stopping")
         if self._playing == True:
-            logging.info("self._playing = False")
-
-            self.radio.stop()
-            logging.info("self.radio.stop()")
-
-            self.radio.set_bias_tee(0)
-            logging.info("self.radio.set_bias_tee(0)")
-
-            self.radio.close()
-            logging.info("self.radio.close()")
+            try:
+                self.radio.stop()
+                self.radio.set_bias_tee(0)
+                self.radio.close()
+            except Exception as error:
+                logging.info("Error: %s", str(error))
+                self.ui.setstatus("Error: %s", str(error))
 
             #with self.audio_queue.mutex:
             #    self.audio_queue.queue.clear()
@@ -253,7 +270,7 @@ class NRSC5player:
                 logging.info("self.audio_queue.queue.clear()")
 
             self._playing = False
-            
+
             if self.audio_thread != None:
                 self.audio_thread.join()
 
@@ -269,7 +286,7 @@ class NRSC5player:
                                 rate=44100,
                                 output_device_index=index,
                                 output=True)
-        except OSError:
+        except Exception:
             logging.warning("No audio output device available.")
             stream = None
 
@@ -277,18 +294,22 @@ class NRSC5player:
             while self._playing:
                 #if self.audio_queue.empty() is not True:
                 #    samples = self.audio_queue.get(block=False)
-                if self.audio_queues[self.program].empty() is not True:
-                    samples = self.audio_queues[self.program].get(block=False)
-                    if samples:
+                #logging.info("checking buffer")
+                if self.initialbuffer:
+                    try:
+                        samples = self.audio_queues[self.program].get(block=False)
+                    except Exception as error:
+                        logging.info("Error: %s", str(error))
+                    else:
                         if self.volume < 1:
                             decodeddata = numpy.fromstring(samples, numpy.int16)
                             newdata = (decodeddata * self.volume).astype(numpy.int16)
                             stream.write(newdata.tostring())
                         else:
                             stream.write(samples)
-                    #self.audio_queue.task_done()
-                    self.audio_queues[self.program].task_done()
-
+                        #self.audio_queue.task_done()
+                        self.audio_queues[self.program].task_done()
+                        
             stream.stop_stream()
             stream.close()
         audio.terminate()
