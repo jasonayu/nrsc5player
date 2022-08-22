@@ -247,7 +247,6 @@ class MusicPlayer:
             self.resetdisplay()
             self.player.program = 0
             self.player.frequency = freq
-            self.player.volume = self.volumevar.get()
             if self.hostvar.get():
                 self.player.host = self.hostvar.get()
             self.player.run()
