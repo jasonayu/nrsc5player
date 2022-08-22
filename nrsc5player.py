@@ -12,14 +12,13 @@ import nrsc5
 class NRSC5player:
 
     def __init__(self):
-        logging.basicConfig(level=0,
+        logging.basicConfig(level=1,
                             format="%(asctime)s %(message)s",
                             datefmt="%H:%M:%S")
         if os.name == "nt":
             os.add_dll_directory(os.getcwd())
         self.radio = nrsc5.NRSC5(
             lambda evt_type, evt: self.callback(evt_type, evt))
-        self.audio_queue = queue.Queue(maxsize=64)
         self.device_condition = threading.Condition()
 
         self.deviceid = 0
@@ -46,9 +45,6 @@ class NRSC5player:
         self.logos = {}
         self.logoportmap = {}
         self.imageportmap = {}
-        self.artist = None
-        self.title = None
-        self.album = None
         self.xhdr = {}
         self.albumart = {}
         self.albumartindex = {}
@@ -71,56 +67,31 @@ class NRSC5player:
             self.ui.setstatus("Lost synchronization")
 
         elif evt_type == nrsc5.EventType.AUDIO:
-
-            logging.info("Current: %d, 0: %d, 1: %d, 2: %d, 3: %d",
-                        self.program,
-                        self.audio_queues[0].qsize(),
-                        self.audio_queues[1].qsize(),
-                        self.audio_queues[2].qsize(),
-                        self.audio_queues[3].qsize())
-
-            #if evt.program == self.program:
-            #    self.audio_queue.put(evt.data)
             try:
                 self.audio_queues[evt.program].put(evt.data)
             except Exception as error:
                 logging.info("Error: %s", str(error))
 
-            if evt.program != self.program:
-                while self.audio_queues[evt.program].qsize() > self.bufferthresh:
-                    try:
-                        self.audio_queues[evt.program].get(block=False)
-                    except Exception as error:
-                        logging.info("Error: %s", str(error))
-                    else:
-                        self.audio_queues[evt.program].task_done()
-        
-            #el
-            if self.audio_queues[0].qsize() >= self.bufferthresh and not self.initialbuffer:
-                self.initialbuffer = True
-
-                
+            #logging.info("Current: %d, 0: %d, 1: %d, 2: %d, 3: %d",
+            #            self.program,
+            #            self.audio_queues[0].qsize(),
+            #            self.audio_queues[1].qsize(),
+            #            self.audio_queues[2].qsize(),
+            #            self.audio_queues[3].qsize())
 
         elif evt_type == nrsc5.EventType.ID3:
+            if evt.program not in self.programs:
+                self.programs[evt.program] = {}
+            if evt.title:
+                self.programs[evt.program]['title'] = evt.title
+            if evt.artist:
+                self.programs[evt.program]['artist'] = evt.artist
+            if evt.album:
+                self.programs[evt.program]['album'] = evt.album
+            if evt.genre:
+                self.programs[evt.program]['genre'] = evt.genre
             if evt.program == self.program:
-                if evt.title and evt.title != self.title:
-                    self.title = evt.title
-                    self.ui.settitle(evt.title)
-                    logging.info("Title: %s", evt.title)
-                if evt.artist and evt.artist != self.artist:
-                    self.artist = evt.artist
-                    self.ui.setartist(evt.artist)
-                    logging.info("Artist: %s", evt.artist)
-                if evt.album and evt.album != self.album:
-                    self.album = evt.album
-                    logging.info("Album: %s", evt.album)
-                if evt.genre:
-                    self.genre = evt.genre
-                    logging.info("Genre: %s", evt.genre)
-                if evt.ufid:
-                    self.ufid = evt.ufid
-                    logging.info("Unique file identifier: %s %s",
-                                 evt.ufid.owner, evt.ufid.id)
+                self.updateprograminfo(self.program)
 
             #pull albumart from library and assign to albumartindex
             if evt.xhdr and (evt.program not in self.xhdr
@@ -144,7 +115,9 @@ class NRSC5player:
                              service.type, service.number, service.name)
                 if service.type == nrsc5.ServiceType.AUDIO:
                     index = service.number - 1
-                    self.programs[index] = service.name
+                    if index not in self.programs:
+                        self.programs[index] = {}
+                    self.programs[index]['name'] = service.name
                     self.ui.setprogrambutton(index, service.name)
                     if index == self.program:
                         self.ui.setprogramname(service.name)
@@ -198,15 +171,18 @@ class NRSC5player:
 
     def setprogram(self, programindex):
         if programindex != self.program and programindex in self.programs:
-            #with self.audio_queue.mutex:
-            #    self.audio_queue.queue.clear()
             logging.info("Program %s", programindex)
             self.program = programindex
-            self.ui.setprogramname(self.programs[programindex])
+            self.updateprograminfo(self.program)
             self.updatealbumart(self.program)
 
-    def setvolume(self, volume):
-        self.volume = volume
+    def updateprograminfo(self, programindex):
+        if 'title' in self.programs[programindex]:
+            self.ui.settitle(self.programs[programindex]['title'])
+        if 'artist' in self.programs[programindex]:
+            self.ui.setartist(self.programs[programindex]['artist'])
+        if 'name' in self.programs[programindex]:
+            self.ui.setprogramname(self.programs[programindex]['name'])
 
     def updatealbumart(self, programindex):
         if programindex in self.albumartindex and self.albumartindex[
@@ -218,6 +194,9 @@ class NRSC5player:
         else:
             self.ui.setalbumartdata(None)
             #logging.info("No current album art selected and no logo stored?")
+
+    def setvolume(self, volume):
+        self.volume = volume
 
     def run(self):
         self.resetdata()
@@ -263,11 +242,8 @@ class NRSC5player:
                 logging.info("Error: %s", str(error))
                 self.ui.setstatus("Error: %s", str(error))
 
-            #with self.audio_queue.mutex:
-            #    self.audio_queue.queue.clear()
             with self.audio_queues[self.program].mutex:
                 self.audio_queues[self.program].queue.clear()
-                logging.info("self.audio_queue.queue.clear()")
 
             self._playing = False
 
@@ -292,14 +268,28 @@ class NRSC5player:
 
         if stream:
             while self._playing:
-                #if self.audio_queue.empty() is not True:
-                #    samples = self.audio_queue.get(block=False)
-                #logging.info("checking buffer")
+
+                # cull inactive program buffers.  can we do this without checking every loop?
+                for id in self.audio_queues.keys():
+                    if id != self.program:
+                        while self.audio_queues[id].qsize() > self.bufferthresh:
+                            try:
+                                self.audio_queues[id].get(block=False)
+                            except Exception as error:
+                                logging.info("Error: %s", str(error))
+                                continue
+                            else:
+                                self.audio_queues[id].task_done()
+
+                if not self.initialbuffer:
+                    self.initialbuffer = self.audio_queues[0].qsize() >= self.bufferthresh
+
                 if self.initialbuffer:
                     try:
                         samples = self.audio_queues[self.program].get(block=False)
                     except Exception as error:
                         logging.info("Error: %s", str(error))
+                        continue
                     else:
                         if self.volume < 1:
                             decodeddata = numpy.fromstring(samples, numpy.int16)
@@ -307,7 +297,6 @@ class NRSC5player:
                             stream.write(newdata.tostring())
                         else:
                             stream.write(samples)
-                        #self.audio_queue.task_done()
                         self.audio_queues[self.program].task_done()
                         
             stream.stop_stream()
