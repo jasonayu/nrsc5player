@@ -12,7 +12,7 @@ import nrsc5
 class NRSC5player:
 
     def __init__(self):
-        logging.basicConfig(level=1,
+        logging.basicConfig(level=20,
                             format="%(asctime)s %(message)s",
                             datefmt="%H:%M:%S")
         if os.name == "nt":
@@ -45,9 +45,8 @@ class NRSC5player:
         self.logos = {}
         self.logoportmap = {}
         self.imageportmap = {}
-        self.xhdr = {}
+        self.id3 = {}
         self.albumart = {}
-        self.albumartindex = {}
         self.station = None
         self.slogan = None
         self.initialbuffer = False
@@ -80,31 +79,27 @@ class NRSC5player:
             #            self.audio_queues[3].qsize())
 
         elif evt_type == nrsc5.EventType.ID3:
-            if evt.program not in self.programs:
-                self.programs[evt.program] = {}
-            for name, value in evt._asdict().items():
-                if name != 'xhdr':
-                    if type(value) == str:
-                        value = value.encode("latin-1").decode("utf-8")
-                        self.programs[evt.program][name] = value
-            if evt.program == self.program:
-                self.updateprograminfo(self.program)
 
-            #pull albumart from library and assign to albumartindex
-            if evt.xhdr and (evt.program not in self.xhdr
-                             or evt.xhdr != self.xhdr[evt.program]):
-                self.xhdr[evt.program] = evt.xhdr
-                logging.info("XHDR: param=%s mime=%s lot=%s", evt.xhdr.param,
-                             evt.xhdr.mime, evt.xhdr.lot)
+            if evt.program not in self.id3 or evt != self.id3[evt.program]:
 
-                #garbage collection?
-                if evt.program in self.albumartindex and self.albumartindex[
-                        evt.program] in self.albumart:
-                    del self.albumart[self.albumartindex[evt.program]]
+                # garbage collection?
+                if evt.program in self.id3:
+                    try:
+                        if self.id3[evt.program].xhdr is not None:
+                            currentlot = self.id3[evt.program].xhdr.lot
+                            if currentlot in self.albumart and currentlot != evt.xhdr.lot:
+                                del self.albumart[currentlot]
+                    except Exception as error:
+                        logging.info("Error: %s", str(error))
 
-                self.albumartindex[evt.program] = evt.xhdr.lot
+                logging.info(evt)
 
-                self.updatealbumart(self.program)
+                self.id3[evt.program] = evt
+
+                if evt.program == self.program:
+                    self.updateprograminfo(self.program)
+                    self.updatealbumart(self.program)
+
 
         elif evt_type == nrsc5.EventType.SIG:
             for service in evt:
@@ -174,23 +169,27 @@ class NRSC5player:
             self.updatealbumart(self.program)
 
     def updateprograminfo(self, programindex):
-        if 'title' in self.programs[programindex]:
-            self.ui.settitle(self.programs[programindex]['title'])
-        if 'artist' in self.programs[programindex]:
-            self.ui.setartist(self.programs[programindex]['artist'])
-        if 'name' in self.programs[programindex]:
+        if programindex in self.id3:
+            title = self.id3[programindex].title
+            self.ui.settitle(title.encode("latin-1").decode("utf-8"))
+            artist = self.id3[programindex].artist
+            self.ui.setartist(artist.encode("latin-1").decode("utf-8"))
+        if programindex in self.programs:
             self.ui.setprogramname(self.programs[programindex]['name'])
 
     def updatealbumart(self, programindex):
-        if programindex in self.albumartindex and self.albumartindex[
-                programindex] in self.albumart:
-            self.ui.setalbumartdata(
-                self.albumart[self.albumartindex[programindex]])
-        elif programindex in self.logos:
-            self.ui.setalbumartdata(self.logos[programindex])
-        else:
-            self.ui.setalbumartdata(None)
-            #logging.info("No current album art selected and no logo stored?")
+        try:
+            if self.id3[programindex].xhdr is not None:
+                lot = self.id3[programindex].xhdr.lot
+                if lot and lot in self.albumart:
+                    self.ui.setalbumartdata(self.albumart[lot])
+                elif programindex in self.logos:
+                    self.ui.setalbumartdata(self.logos[programindex])
+                else:
+                    self.ui.setalbumartdata(None)
+                    #logging.info("No current album art selected and no logo stored?")
+        except Exception as error:
+            logging.info("Error: %s", str(error))
 
     def setvolume(self, volume):
         self.volume = volume
