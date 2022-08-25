@@ -82,14 +82,11 @@ class NRSC5player:
         elif evt_type == nrsc5.EventType.ID3:
             if evt.program not in self.programs:
                 self.programs[evt.program] = {}
-            if evt.title:
-                self.programs[evt.program]['title'] = evt.title
-            if evt.artist:
-                self.programs[evt.program]['artist'] = evt.artist
-            if evt.album:
-                self.programs[evt.program]['album'] = evt.album
-            if evt.genre:
-                self.programs[evt.program]['genre'] = evt.genre
+            for name, value in evt._asdict().items():
+                if name != 'xhdr':
+                    if type(value) == str:
+                        value = value.encode("latin-1").decode("utf-8")
+                        self.programs[evt.program][name] = value
             if evt.program == self.program:
                 self.updateprograminfo(self.program)
 
@@ -279,7 +276,11 @@ class NRSC5player:
                                 logging.info("Error: %s", str(error))
                                 continue
                             else:
-                                self.audio_queues[id].task_done()
+                                try:
+                                    self.audio_queues[id].task_done()
+                                except Exception as error:
+                                    logging.info("Error: %s", str(error))
+                                    continue
 
                 if not self.initialbuffer:
                     self.initialbuffer = self.audio_queues[0].qsize() >= self.bufferthresh
@@ -297,7 +298,11 @@ class NRSC5player:
                             stream.write(newdata.tostring())
                         else:
                             stream.write(samples)
-                        self.audio_queues[self.program].task_done()
+                            try:
+                                self.audio_queues[self.program].task_done()
+                            except Exception as error:
+                                logging.info("Error: %s", str(error))
+                                continue
                         
             stream.stop_stream()
             stream.close()
