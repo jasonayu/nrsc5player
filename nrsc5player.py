@@ -7,6 +7,7 @@ import threading
 import pyaudio
 import numpy
 import nrsc5
+import sys
 
 
 class NRSC5player:
@@ -28,6 +29,9 @@ class NRSC5player:
 
         self.bufferlength = 256
         self.bufferthresh = 60
+
+        self.cachelogos = True
+        self.aas_dir = None
 
         self.resetdata()
 
@@ -92,14 +96,11 @@ class NRSC5player:
                     except Exception as error:
                         logging.info("Error: %s", str(error))
 
-                logging.info(evt)
-
                 self.id3[evt.program] = evt
 
                 if evt.program == self.program:
                     self.updateprograminfo(self.program)
                     self.updatealbumart(self.program)
-
 
         elif evt_type == nrsc5.EventType.SIG:
             for service in evt:
@@ -111,8 +112,6 @@ class NRSC5player:
                         self.programs[index] = {}
                     self.programs[index]['name'] = service.name
                     self.ui.setprogrambutton(index, service.name)
-                    if index == self.program:
-                        self.ui.setprogramname(service.name)
                     for component in service.components:
                         #audio data
                         if component.type == nrsc5.ComponentType.AUDIO:
@@ -124,17 +123,25 @@ class NRSC5player:
                         elif component.type == nrsc5.ComponentType.DATA:
                             if component.data.mime == nrsc5.MIMEType.PRIMARY_IMAGE:
                                 self.imageportmap[component.data.port] = index
+                                self.programs[index][
+                                    'imageport'] = component.data.port
                             if component.data.mime == nrsc5.MIMEType.STATION_LOGO:
                                 self.logoportmap[component.data.port] = index
+                                self.programs[index][
+                                    'logoport'] = component.data.port
                             logging.info(
                                 "  Data component: id=%s port=%04X service_data_type=%s type=%s mime=%s",
                                 component.id, component.data.port,
                                 component.data.service_data_type,
                                 component.data.type, component.data.mime)
 
+                    if index == self.program:
+                        self.ui.setprogramname(service.name)
+                        self.updatealbumart(index)
+
         elif evt_type == nrsc5.EventType.LOT:
-            logging.info("LOT file: port=%04X lot=%s name=%s size=%s mime=%s",
-                         evt.port, evt.lot, evt.name, len(evt.data), evt.mime)
+            #logging.info("LOT file: port=%04X lot=%s name=%s size=%s mime=%s",
+            #             evt.port, evt.lot, evt.name, len(evt.data), evt.mime)
 
             #load image into library.  there may be a cleaner way to index logos and art...
             programindex = None
@@ -142,7 +149,15 @@ class NRSC5player:
                 programindex = self.logoportmap[evt.port]
                 if programindex not in self.logos:  #probably don't need to set more than once
                     self.logos[programindex] = evt.data
-                    logging.info("Program Logo %s: %s", programindex, evt.name)
+                    logging.info("Program Logo %s, %d: %s", programindex,
+                                 evt.port, evt.name)
+
+                    if self.cachelogos and self.aas_dir is not None:
+                        path = os.path.join(self.aas_dir, str(evt.port))
+                        with open(path, "wb") as file:
+                            file.write(evt.data)
+                            logging.info("Writing logo %s", evt.port)
+
             elif evt.port in self.imageportmap:
                 programindex = self.imageportmap[evt.port]
                 if evt.lot not in self.albumart:  #probably don't need to set more than once
@@ -186,8 +201,15 @@ class NRSC5player:
                 elif programindex in self.logos:
                     self.ui.setalbumartdata(self.logos[programindex])
                 else:
+                    if self.aas_dir is not None:
+                        path = os.path.join(
+                            self.aas_dir,
+                            str(self.programs[programindex]['logoport']))
+                        if os.path.exists(path):
+                            self.ui.setalbumart(path)
+                            return
                     self.ui.setalbumartdata(None)
-                    #logging.info("No current album art selected and no logo stored?")
+                #logging.info("No current album art selected and no logo stored?")
         except Exception as error:
             logging.info("Error: %s", str(error))
 
@@ -196,6 +218,16 @@ class NRSC5player:
 
     def run(self):
         self.resetdata()
+
+        self.aas_dir = os.path.join(sys.path[0], "aas")
+        if self.cachelogos:
+            if not os.path.isdir(self.aas_dir):
+                try:
+                    os.mkdir(self.aas_dir)
+                except Exception as error:
+                    logging.info("Error: %s", str(error))
+                    self.aas_dir = None
+
         try:
             if self.host != None:
                 host = self.host
@@ -224,7 +256,6 @@ class NRSC5player:
         except Exception as error:
             logging.info("Error: %s", str(error))
             self.ui.setstatus("Error: %s", str(error))
-
 
     def stop(self):
         self.ui.setstatus("Stopping")
@@ -268,7 +299,8 @@ class NRSC5player:
                 # cull inactive program buffers.  can we do this without checking every loop?
                 for id in self.audio_queues.keys():
                     if id != self.program:
-                        while self.audio_queues[id].qsize() > self.bufferthresh:
+                        while self.audio_queues[id].qsize(
+                        ) > self.bufferthresh:
                             try:
                                 self.audio_queues[id].get(block=False)
                             except Exception as error:
@@ -282,18 +314,22 @@ class NRSC5player:
                                     continue
 
                 if not self.initialbuffer:
-                    self.initialbuffer = self.audio_queues[0].qsize() >= self.bufferthresh
+                    self.initialbuffer = self.audio_queues[0].qsize(
+                    ) >= self.bufferthresh
 
                 if self.initialbuffer:
                     try:
-                        samples = self.audio_queues[self.program].get(block=False)
+                        samples = self.audio_queues[self.program].get(
+                            block=False)
                     except Exception as error:
                         logging.info("Error: %s", str(error))
                         continue
                     else:
                         if self.volume < 1:
-                            decodeddata = numpy.fromstring(samples, numpy.int16)
-                            newdata = (decodeddata * self.volume).astype(numpy.int16)
+                            decodeddata = numpy.fromstring(
+                                samples, numpy.int16)
+                            newdata = (decodeddata * self.volume).astype(
+                                numpy.int16)
                             stream.write(newdata.tostring())
                         else:
                             stream.write(samples)
@@ -302,7 +338,7 @@ class NRSC5player:
                             except Exception as error:
                                 logging.info("Error: %s", str(error))
                                 continue
-                        
+
             stream.stop_stream()
             stream.close()
         audio.terminate()
