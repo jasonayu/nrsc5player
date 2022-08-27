@@ -149,14 +149,13 @@ class NRSC5player:
                 programindex = self.logoportmap[evt.port]
                 if programindex not in self.logos:  #probably don't need to set more than once
                     self.logos[programindex] = evt.data
-                    logging.info("Program Logo %s, %d: %s", programindex,
-                                 evt.port, evt.name)
-
                     if self.cachelogos and self.aas_dir is not None:
-                        path = os.path.join(self.aas_dir, str(evt.port))
+                        logofilename = str(self.frequency) + '-' + str(
+                            programindex)
+                        path = os.path.join(self.aas_dir, logofilename)
                         with open(path, "wb") as file:
                             file.write(evt.data)
-                            logging.info("Writing logo %s", evt.port)
+                            logging.info("Writing logo %s", logofilename)
 
             elif evt.port in self.imageportmap:
                 programindex = self.imageportmap[evt.port]
@@ -202,9 +201,9 @@ class NRSC5player:
                     self.ui.setalbumartdata(self.logos[programindex])
                 else:
                     if self.aas_dir is not None:
-                        path = os.path.join(
-                            self.aas_dir,
-                            str(self.programs[programindex]['logoport']))
+                        logofilename = str(self.frequency) + '-' + str(
+                            programindex)
+                        path = os.path.join(self.aas_dir, logofilename)
                         if os.path.exists(path):
                             self.ui.setalbumart(path)
                             return
@@ -244,7 +243,12 @@ class NRSC5player:
 
             logging.info("Tuning %s", self.frequency)
             self.ui.setstatus("Tuning %s", self.frequency)
-            self.radio.set_frequency(self.frequency)
+
+            freq = float(self.frequency)
+            if freq and freq < 10000:
+                freq *= 1e6
+
+            self.radio.set_frequency(freq)
 
             self._playing = True
 

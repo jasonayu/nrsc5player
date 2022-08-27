@@ -237,16 +237,13 @@ class MusicPlayer:
 
     def play(self):
         if self.freqvar.get():
-            freq = float(self.freqvar.get())
-            if freq and freq < 10000:
-                freq *= 1e6
-            if self.player.frequency != freq:
+            if self.player.frequency != self.freqvar.get():
                 self.stop()
             
             self.saveconfig()
             self.resetdisplay()
             self.player.program = 0
-            self.player.frequency = freq
+            self.player.frequency = self.freqvar.get()
             if self.hostvar.get():
                 self.player.host = self.hostvar.get()
             self.player.run()
