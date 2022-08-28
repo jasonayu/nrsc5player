@@ -46,27 +46,27 @@ class MusicPlayer:
         self.infolabel['title'] = ttk.Label(self.root,
                                             text=self.info['title'],
                                             font=("Arial", 12))
-        self.infolabel['title'].grid(row=0, column=1, padx=0, sticky=W)
+        self.infolabel['title'].grid(columnspan=3, row=0, column=1, padx=0, sticky=W)
 
         self.infolabel['artist'] = ttk.Label(self.root,
                                              text=self.info['artist'],
                                              font=("Arial", 12))
-        self.infolabel['artist'].grid(row=1, column=1, padx=0, sticky=W)
+        self.infolabel['artist'].grid(columnspan=3, row=1, column=1, padx=0, sticky=W)
 
         self.infolabel['program'] = ttk.Label(self.root,
                                               text=self.info['program'],
                                               font=("Arial", 12))
-        self.infolabel['program'].grid(row=2, column=1, padx=0, sticky=W)
+        self.infolabel['program'].grid(columnspan=3, row=2, column=1, padx=0, sticky=W)
 
         self.infolabel['station'] = ttk.Label(self.root,
                                               text=self.info['station'],
                                               font=("Arial", 12))
-        self.infolabel['station'].grid(row=3, column=1, padx=0, sticky=W)
+        self.infolabel['station'].grid(columnspan=3, row=3, column=1, padx=0, sticky=W)
 
         self.infolabel['slogan'] = ttk.Label(self.root,
                                              text=self.info['slogan'],
                                              font=("Arial", 12))
-        self.infolabel['slogan'].grid(row=4, column=1, padx=0, sticky=W)
+        self.infolabel['slogan'].grid(columnspan=3, row=4, column=1, padx=0, sticky=W)
 
         self.freqvar = StringVar()
         freqentry = ttk.Spinbox(self.root,
@@ -97,16 +97,16 @@ class MusicPlayer:
         self.programbtn = {}
         self.programbtn[0] = ttk.Button(self.root,
                                         command=lambda: self.setprogram(0))
-        self.programbtn[0].grid(row=7, column=1, padx=5, sticky=W)
+        self.programbtn[0].grid(row=7, column=1, padx=5, sticky=NSEW)
         self.programbtn[1] = ttk.Button(self.root,
                                         command=lambda: self.setprogram(1))
-        self.programbtn[1].grid(row=8, column=1, padx=5, sticky=W)
+        self.programbtn[1].grid(row=8, column=1, padx=5, sticky=NSEW)
         self.programbtn[2] = ttk.Button(self.root,
                                         command=lambda: self.setprogram(2))
-        self.programbtn[2].grid(row=9, column=1, padx=5, sticky=W)
+        self.programbtn[2].grid(row=9, column=1, padx=5, sticky=NSEW)
         self.programbtn[3] = ttk.Button(self.root,
                                         command=lambda: self.setprogram(3))
-        self.programbtn[3].grid(row=10, column=1, padx=5, sticky=W)
+        self.programbtn[3].grid(row=10, column=1, padx=5, sticky=NSEW)
 
         self.statuslabel = ttk.Label(self.root,
                                      text=self.status,
@@ -121,11 +121,11 @@ class MusicPlayer:
                                       orient='horizontal',
                                       variable=self.volumevar,
                                       command=self.setvolume)
-        self.volumeslider.grid(row=12, column=1, padx=0, sticky=W)
+        self.volumeslider.grid(row=12, column=1, padx=0, sticky=NSEW)
         self.volumelabel = ttk.Label(self.root,
                                      text=self.volumevar.get(),
                                      font=("Arial", 12))
-        self.volumelabel.grid(row=13, column=1, padx=0, sticky=W)
+        self.volumelabel.grid(row=12, column=2, padx=0, sticky=W)
 
         self.root.protocol("WM_DELETE_WINDOW", self.onclose)
 
@@ -206,7 +206,7 @@ class MusicPlayer:
 
     def setstatus(self, input, *args):
         self.status = input % args
-        self.statuslabel.config(text=input)
+        self.statuslabel.config(text=self.status)
 
     def setprogram(self, prog):
         self.player.setprogram(prog)
