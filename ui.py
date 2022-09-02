@@ -5,15 +5,16 @@ from tkinter import ttk
 from PIL import Image, ImageTk
 import nrsc5player
 import configparser
+import player
+
 
 class MusicPlayer:
 
-    def __init__(self):
+    def __init__(self, root):
 
-        self.root = Tk()
+        self.root = root
 
         self.style = ttk.Style(self.root)
-        #self.style.theme_use("vista")
 
         self.config = configparser.ConfigParser()
 
@@ -27,112 +28,124 @@ class MusicPlayer:
         self.info['slogan'] = "slogan"
         self.status = None
 
+        #self.player = player.Player()
         self.player = nrsc5player.NRSC5player()
         self.player.ui = self
 
         self.root.title(self.windowtitle)
-        self.root.geometry("600x400")
+        self.root.geometry("600x350")
+        self.root.resizable(0, 0)
 
         self.defaultimage = ImageTk.PhotoImage(
             Image.new('RGB', (200, 200), color='gray'))
 
-        self.albumartlabel = Label(self.root,
+        self.infosection = ttk.Frame(self.root)
+
+        self.albumartlabel = Label(self.infosection,
                                    image=self.defaultimage,
                                    width=200,
                                    height=200)
-        self.albumartlabel.grid(rowspan=6, row=0, column=0, padx=5, sticky=W)
+        self.albumartlabel.grid(row=0, column=0, padx=5, sticky=W)
 
+        self.infotext = ttk.Frame(self.infosection)
         self.infolabel = {}
-        self.infolabel['title'] = ttk.Label(self.root,
+        self.infolabel['title'] = ttk.Label(self.infotext,
                                             text=self.info['title'],
                                             font=("Arial", 12))
-        self.infolabel['title'].grid(columnspan=3, row=0, column=1, padx=0, sticky=W)
+        self.infolabel['title'].grid(row=0, column=0, padx=0, sticky=W)
 
-        self.infolabel['artist'] = ttk.Label(self.root,
+        self.infolabel['artist'] = ttk.Label(self.infotext,
                                              text=self.info['artist'],
                                              font=("Arial", 12))
-        self.infolabel['artist'].grid(columnspan=3, row=1, column=1, padx=0, sticky=W)
+        self.infolabel['artist'].grid(row=1, column=0, padx=0, sticky=W)
 
-        self.infolabel['program'] = ttk.Label(self.root,
+        self.infolabel['program'] = ttk.Label(self.infotext,
                                               text=self.info['program'],
                                               font=("Arial", 12))
-        self.infolabel['program'].grid(columnspan=3, row=2, column=1, padx=0, sticky=W)
+        self.infolabel['program'].grid(row=2, column=0, padx=0, sticky=W)
 
-        self.infolabel['station'] = ttk.Label(self.root,
+        self.infolabel['station'] = ttk.Label(self.infotext,
                                               text=self.info['station'],
                                               font=("Arial", 12))
-        self.infolabel['station'].grid(columnspan=3, row=3, column=1, padx=0, sticky=W)
+        self.infolabel['station'].grid(row=3, column=0, padx=0, sticky=W)
 
-        self.infolabel['slogan'] = ttk.Label(self.root,
+        self.infolabel['slogan'] = ttk.Label(self.infotext,
                                              text=self.info['slogan'],
                                              font=("Arial", 12))
-        self.infolabel['slogan'].grid(columnspan=3, row=4, column=1, padx=0, sticky=W)
+        self.infolabel['slogan'].grid(row=4, column=0, padx=0, sticky=W)
+        self.infotext.grid(row=0, column=1, padx=5, sticky=W)
 
+        self.infosection.pack(side="top", fill="x")
+
+        self.style.configure('Control.TFrame', background='blue')
+        self.controlsection = ttk.Frame(self.root)
+
+        self.programbar = ttk.Frame(self.controlsection,
+                                    style='Control.TFrame')
+        self.programbtn = {}
+        self.programbtn[0] = ttk.Button(self.programbar,
+                                        command=lambda: self.setprogram(0))
+        self.programbtn[0].pack(ipady=5, expand=True, fill='x', side='left')
+        self.programbtn[1] = ttk.Button(self.programbar,
+                                        command=lambda: self.setprogram(1))
+        self.programbtn[1].pack(ipady=5, expand=True, fill='x', side='left')
+        self.programbtn[2] = ttk.Button(self.programbar,
+                                        command=lambda: self.setprogram(2))
+        self.programbtn[2].pack(ipady=5, expand=True, fill='x', side='left')
+        self.programbtn[3] = ttk.Button(self.programbar,
+                                        command=lambda: self.setprogram(3))
+        self.programbtn[3].pack(ipady=5, expand=True, fill='x', side='left')
+        self.programbar.pack(side="top", fill="x")
+
+        self.tunerbar = ttk.Frame(self.controlsection)
         self.freqvar = StringVar()
-        freqentry = ttk.Spinbox(self.root,
-                              textvariable=self.freqvar,
-                              from_=87.5,
-                              to=107.9,
-                              increment=0.2,
-                              wrap=False)
-        freqentry.grid(row=5, column=1, padx=0, sticky=W)
+        freqentry = ttk.Spinbox(self.tunerbar,
+                                textvariable=self.freqvar,
+                                from_=87.5,
+                                to=107.9,
+                                increment=0.2,
+                                wrap=False)
+        freqentry.grid(row=0, column=0, padx=0, sticky=W)
         freqentry.bind('<Return>', self.freqreturn)
-
-        ttk.Button(self.root, text="Start", command=self.play).grid(row=5,
-                                                                    column=2,
-                                                                    padx=5,
-                                                                    sticky=W)
-        ttk.Button(self.root, text="Stop", command=self.stop).grid(row=5,
-                                                                   column=3,
-                                                                   padx=5,
-                                                                   sticky=W)
+        ttk.Button(self.tunerbar, text="Start",
+                   command=self.play).grid(row=0, column=1, padx=5, sticky=W)
+        ttk.Button(self.tunerbar, text="Stop",
+                   command=self.stop).grid(row=0, column=2, padx=5, sticky=W)
+        self.tunerbar.pack(side="top", fill="x")
 
         self.hostvar = StringVar()
-        ttk.Entry(self.root, textvariable=self.hostvar).grid(row=6,
-                                                             column=1,
-                                                             padx=0,
-                                                             pady=5,
-                                                             sticky=W)
+        ttk.Entry(self.controlsection,
+                  textvariable=self.hostvar).pack(side="top")
 
-        self.programbtn = {}
-        self.programbtn[0] = ttk.Button(self.root,
-                                        command=lambda: self.setprogram(0))
-        self.programbtn[0].grid(row=7, column=1, padx=5, sticky=NSEW)
-        self.programbtn[1] = ttk.Button(self.root,
-                                        command=lambda: self.setprogram(1))
-        self.programbtn[1].grid(row=8, column=1, padx=5, sticky=NSEW)
-        self.programbtn[2] = ttk.Button(self.root,
-                                        command=lambda: self.setprogram(2))
-        self.programbtn[2].grid(row=9, column=1, padx=5, sticky=NSEW)
-        self.programbtn[3] = ttk.Button(self.root,
-                                        command=lambda: self.setprogram(3))
-        self.programbtn[3].grid(row=10, column=1, padx=5, sticky=NSEW)
-
-        self.statuslabel = ttk.Label(self.root,
-                                     text=self.status,
-                                     font=("Arial", 12))
-        self.statuslabel.grid(row=11, column=1, padx=0, sticky=W)
-
+        self.volumesection = ttk.Frame(self.controlsection)
         self.volumevar = IntVar()
         self.volumevar.set(100)
-        self.volumeslider = ttk.Scale(self.root,
+        self.volumeslider = ttk.Scale(self.volumesection,
                                       from_=0,
                                       to=100,
                                       orient='horizontal',
                                       variable=self.volumevar,
                                       command=self.setvolume)
-        self.volumeslider.grid(row=12, column=1, padx=0, sticky=NSEW)
-        self.volumelabel = ttk.Label(self.root,
-                                     text=self.volumevar.get(),
-                                     font=("Arial", 12))
-        self.volumelabel.grid(row=12, column=2, padx=0, sticky=W)
+        self.volumeslider.grid(row=0, column=0, padx=0, sticky=NSEW)
+        self.volumelabel = ttk.Label(self.volumesection,
+                                     text=self.volumevar.get())
+        self.volumelabel.grid(row=0, column=1, padx=0, sticky=W)
+        self.volumesection.pack(side="top", fill="x")
+
+        self.controlsection.pack(side="top", fill="x")
+
+        self.statusbar = ttk.Frame(self.root)
+        self.statuslabel = ttk.Label(self.statusbar,
+                                     text="Status Bar",
+                                     relief=SUNKEN,
+                                     anchor=W)
+        self.statuslabel.pack(fill="both", expand=True)
+        self.statusbar.pack(side="bottom", fill="x")
 
         self.root.protocol("WM_DELETE_WINDOW", self.onclose)
 
         self.loadconfig()
         self.resetdisplay()
-
-        self.root.mainloop()
 
     def freqreturn(self, event):
         self.play()
@@ -239,19 +252,18 @@ class MusicPlayer:
         if self.freqvar.get():
             if self.player.frequency != self.freqvar.get():
                 self.stop()
-            
+                self.resetdisplay()
+
             self.saveconfig()
-            self.resetdisplay()
-            self.player.program = 0
-            self.player.frequency = self.freqvar.get()
+            self.player.setfrequency(self.freqvar.get())
             if self.hostvar.get():
                 self.player.host = self.hostvar.get()
             self.player.run()
 
     def stop(self):
         self.player.stop()
-        self.resetdisplay()
-        self.updatewindowtitle()
+        #self.resetdisplay()
+        #self.updatewindowtitle()
 
     def onclose(self):
         self.stop()
@@ -260,4 +272,6 @@ class MusicPlayer:
 
 
 if __name__ == "__main__":
-    MusicPlayer()
+    root = Tk()
+    MusicPlayer(root)
+    root.mainloop()
