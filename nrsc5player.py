@@ -47,6 +47,7 @@ class NRSC5player:
             2: queue.Queue(maxsize=self.bufferlength),
             3: queue.Queue(maxsize=self.bufferlength)
         }
+        self.buffered = {}
         self.logos = {}
         self.logoportmap = {}
         self.imageportmap = {}
@@ -66,12 +67,15 @@ class NRSC5player:
 
         if evt_type == nrsc5.EventType.LOST_DEVICE:
             logging.info("Lost device")
+            self.ui.setstatus("Lost device")
             with self.device_condition:
                 self.device_condition.notify()
         elif evt_type == nrsc5.EventType.SYNC:
             logging.info("Synchronized")
+            self.ui.setstatus("Synchronized")
         elif evt_type == nrsc5.EventType.LOST_SYNC:
             logging.info("Lost synchronization")
+            self.ui.setstatus("Lost synchronization")
 
         elif evt_type == nrsc5.EventType.AUDIO:
             if self._playing:
@@ -109,8 +113,8 @@ class NRSC5player:
 
         elif evt_type == nrsc5.EventType.SIG:
             for service in evt:
-                logging.info("SIG Service: type=%s number=%s name=%s",
-                             service.type, service.number, service.name)
+                #logging.info("SIG Service: type=%s number=%s name=%s",
+                #             service.type, service.number, service.name)
                 if service.type == nrsc5.ServiceType.AUDIO:
                     index = service.number - 1
                     if index not in self.programs:
@@ -120,6 +124,7 @@ class NRSC5player:
                     for component in service.components:
                         #audio data
                         if component.type == nrsc5.ComponentType.AUDIO:
+                            continue
                             logging.info(
                                 "  Audio component: id=%s port=%04X type=%s mime=%s",
                                 component.id, component.audio.port,
@@ -134,6 +139,7 @@ class NRSC5player:
                                 self.logoportmap[component.data.port] = index
                                 self.programs[index][
                                     'logoport'] = component.data.port
+                            continue
                             logging.info(
                                 "  Data component: id=%s port=%04X service_data_type=%s type=%s mime=%s",
                                 component.id, component.data.port,
@@ -220,7 +226,7 @@ class NRSC5player:
                 logofilename = str(self.frequency) + '-' + str(programindex)
                 path = os.path.join(self.aas_dir, logofilename)
                 if os.path.exists(path):
-                    self.ui.setalbumart(path)
+                    self.ui.setalbumartfile(path)
                     return
             self.ui.setalbumartdata(None)
             #logging.info("No current album art selected and no logo stored?")
@@ -280,15 +286,11 @@ class NRSC5player:
         logging.info("Stopping")
         if self._playing == True:
             self._playing = False
-            logging.info("self._playing = False")
 
             try:
-                logging.info("trying to stop!")
                 self.radio.stop()
-                logging.info("self.radio.stop()")
                 self.radio.set_bias_tee(0)
                 self.radio.close()
-                logging.info("self.radio.close()")
             except Exception as ex:
                 self.ui.setstatus("Error: %s", self.exceptioninfo(ex))
 
