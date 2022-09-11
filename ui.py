@@ -5,7 +5,7 @@ from tkinter import ttk
 from PIL import Image, ImageTk
 import nrsc5player
 import configparser
-import player
+import io
 
 
 class MusicPlayer:
@@ -15,107 +15,110 @@ class MusicPlayer:
         self.root = root
 
         self.style = ttk.Style(self.root)
+        #self.style.theme_use("vista")
 
         self.config = configparser.ConfigParser()
+        self.configwindow = None
 
         self.windowtitle = "NRSC5 HD Radio"
 
         self.info = {}
-        self.info['title'] = 'title'
+        self.info['title'] = "title"
         self.info['artist'] = "artist"
         self.info['program'] = "program"
         self.info['station'] = "station"
         self.info['slogan'] = "slogan"
         self.status = None
 
-        #self.player = player.Player()
-        self.player = nrsc5player.NRSC5player()
-        self.player.ui = self
-
         self.root.title(self.windowtitle)
-        self.root.geometry("600x350")
+        #self.root.geometry("640x225")
+        self.root.geometry("")
         self.root.resizable(0, 0)
 
-        self.defaultimage = ImageTk.PhotoImage(
-            Image.new('RGB', (200, 200), color='gray'))
+        self.defaultimage = Image.new('RGB', (200, 200), color='gray')
 
-        self.infosection = ttk.Frame(self.root)
+        self.style.configure('Control.TFrame', background='blue')
 
-        self.albumartlabel = Label(self.infosection,
-                                   image=self.defaultimage,
-                                   width=200,
-                                   height=200)
-        self.albumartlabel.grid(row=0, column=0, padx=5, sticky=W)
+        self.infosection = ttk.Frame(self.root, width=640, height=200)
+
+        self.albumartlabel = Label(self.infosection)
+        #image=ImageTk.PhotoImage(self.defaultimage))
 
         self.infotext = ttk.Frame(self.infosection)
+
+        self.popup_menu = Menu(self.infotext, tearoff=0)
+        self.popup_menu.add_command(label="Configuration",
+                                    command=self.openconfigwindow)
+        self.popup_menu.add_command(label="Exit", command=self.onclose)
+
+        self.infotext.bind("<Button-3>", self.popup)  # Button-2 on Aqua
+        self.albumartlabel.bind("<Button-3>", self.popup)  # Button-2 on Aqua
+
         self.infolabel = {}
         self.infolabel['title'] = ttk.Label(self.infotext,
                                             text=self.info['title'],
-                                            font=("Arial", 12))
-        self.infolabel['title'].grid(row=0, column=0, padx=0, sticky=W)
+                                            font=("-size 14"))
+        self.infolabel['title'].pack()
 
         self.infolabel['artist'] = ttk.Label(self.infotext,
                                              text=self.info['artist'],
-                                             font=("Arial", 12))
-        self.infolabel['artist'].grid(row=1, column=0, padx=0, sticky=W)
+                                             font=("-size 11"))
+        self.infolabel['artist'].pack()
 
         self.infolabel['program'] = ttk.Label(self.infotext,
                                               text=self.info['program'],
-                                              font=("Arial", 12))
-        self.infolabel['program'].grid(row=2, column=0, padx=0, sticky=W)
+                                              font=("-size 11"))
+        self.infolabel['program'].pack()
 
         self.infolabel['station'] = ttk.Label(self.infotext,
                                               text=self.info['station'],
-                                              font=("Arial", 12))
-        self.infolabel['station'].grid(row=3, column=0, padx=0, sticky=W)
+                                              font=("-size 11"))
+        self.infolabel['station'].pack()
 
         self.infolabel['slogan'] = ttk.Label(self.infotext,
                                              text=self.info['slogan'],
-                                             font=("Arial", 12))
-        self.infolabel['slogan'].grid(row=4, column=0, padx=0, sticky=W)
-        self.infotext.grid(row=0, column=1, padx=5, sticky=W)
+                                             font=("-size 11"))
+        self.infolabel['slogan'].pack()
 
-        self.infosection.pack(side="top", fill="x")
-
-        self.style.configure('Control.TFrame', background='blue')
-        self.controlsection = ttk.Frame(self.root)
-
-        self.programbar = ttk.Frame(self.controlsection,
-                                    style='Control.TFrame')
+        self.programbar = ttk.Frame(self.infosection)
         self.programbtn = {}
         self.programbtn[0] = ttk.Button(self.programbar,
                                         command=lambda: self.setprogram(0))
-        self.programbtn[0].pack(ipady=5, expand=True, fill='x', side='left')
+        self.programbtn[0].pack(padx=1, expand=True, fill="x", side="left")
         self.programbtn[1] = ttk.Button(self.programbar,
                                         command=lambda: self.setprogram(1))
-        self.programbtn[1].pack(ipady=5, expand=True, fill='x', side='left')
+        self.programbtn[1].pack(padx=1, expand=True, fill="x", side="left")
         self.programbtn[2] = ttk.Button(self.programbar,
                                         command=lambda: self.setprogram(2))
-        self.programbtn[2].pack(ipady=5, expand=True, fill='x', side='left')
+        self.programbtn[2].pack(padx=1, expand=True, fill="x", side="left")
         self.programbtn[3] = ttk.Button(self.programbar,
                                         command=lambda: self.setprogram(3))
-        self.programbtn[3].pack(ipady=5, expand=True, fill='x', side='left')
-        self.programbar.pack(side="top", fill="x")
+        self.programbtn[3].pack(padx=1, expand=True, fill="x", side="left")
+
+        self.controlsection = ttk.Frame(self.infosection)
+
+        ttk.Button(self.controlsection,
+                   text="?",
+                   width=2,
+                   command=self.openconfigwindow).pack(side="left", padx=5)
 
         self.tunerbar = ttk.Frame(self.controlsection)
+        ttk.Label(self.tunerbar, text="Frequency:").pack(side="left", fill="x")
         self.freqvar = StringVar()
         freqentry = ttk.Spinbox(self.tunerbar,
                                 textvariable=self.freqvar,
                                 from_=87.5,
                                 to=107.9,
                                 increment=0.2,
-                                wrap=False)
-        freqentry.grid(row=0, column=0, padx=0, sticky=W)
+                                wrap=False,
+                                width=7)
+        freqentry.pack(side="left", fill="x", padx=1)
         freqentry.bind('<Return>', self.freqreturn)
-        ttk.Button(self.tunerbar, text="Start",
-                   command=self.play).grid(row=0, column=1, padx=5, sticky=W)
-        ttk.Button(self.tunerbar, text="Stop",
-                   command=self.stop).grid(row=0, column=2, padx=5, sticky=W)
-        self.tunerbar.pack(side="top", fill="x")
-
-        self.hostvar = StringVar()
-        ttk.Entry(self.controlsection,
-                  textvariable=self.hostvar).pack(side="top")
+        ttk.Button(self.tunerbar, text="Start", width=7,
+                   command=self.play).pack(side="left", fill="x", padx=2)
+        ttk.Button(self.tunerbar, text="Stop", width=7,
+                   command=self.stop).pack(side="left", fill="x", padx=2)
+        self.tunerbar.pack(side="left", fill="x", padx=5)
 
         self.volumesection = ttk.Frame(self.controlsection)
         self.volumevar = IntVar()
@@ -126,13 +129,34 @@ class MusicPlayer:
                                       orient='horizontal',
                                       variable=self.volumevar,
                                       command=self.setvolume)
-        self.volumeslider.grid(row=0, column=0, padx=0, sticky=NSEW)
+        self.volumeslider.pack(side="left")
         self.volumelabel = ttk.Label(self.volumesection,
-                                     text=self.volumevar.get())
-        self.volumelabel.grid(row=0, column=1, padx=0, sticky=W)
-        self.volumesection.pack(side="top", fill="x")
+                                     text=self.volumevar.get(),
+                                     width=3)
+        self.volumelabel.pack(side="left", fill="x")
+        self.volumesection.pack(side="top", fill="x", padx=5, expand=True)
 
-        self.controlsection.pack(side="top", fill="x")
+        self.infosection.pack(side="top", fill="x")
+
+        self.infosection.columnconfigure(0, weight=0)
+        self.infosection.columnconfigure(1, weight=1)
+        self.infosection.rowconfigure(0, weight=1)
+        self.infosection.rowconfigure(1, weight=0)
+        self.infosection.rowconfigure(2, weight=0)
+
+        self.albumartlabel.grid(rowspan=3, column=0, row=0, sticky=NSEW)
+        self.infotext.grid(column=1, row=0, sticky=EW)
+        self.programbar.grid(column=1, row=1, sticky=EW, padx=2)
+        self.controlsection.grid(column=1, row=2, sticky=S, padx=10, pady=2)
+
+        self.programvar = IntVar()
+        self.hostvar = StringVar()
+        self.devicevar = IntVar()
+        self.cachevar = BooleanVar()
+
+        configbar = ttk.Frame(self.root)
+
+        configbar.pack(side="top", fill="x")
 
         self.statusbar = ttk.Frame(self.root)
         self.statuslabel = ttk.Label(self.statusbar,
@@ -143,9 +167,74 @@ class MusicPlayer:
         self.statusbar.pack(side="bottom", fill="x")
 
         self.root.protocol("WM_DELETE_WINDOW", self.onclose)
+        self.root.update()
+
+        self.player = nrsc5player.NRSC5player()
+        self.player.ui = self
 
         self.loadconfig()
         self.resetdisplay()
+
+    def popup(self, event):
+        try:
+            self.popup_menu.tk_popup(event.x_root, event.y_root, 0)
+        finally:
+            self.popup_menu.grab_release()
+
+    def openconfigwindow(self):
+        if self.configwindow is not None:
+            return
+        self.configwindow = Toplevel(self.root)
+        self.configwindow.resizable(0, 0)
+        self.configwindow.title("Configuration")
+
+        configframe = ttk.Frame(self.configwindow)
+        configframe.pack(padx=10, pady=10)
+
+        hostvarlabel = ttk.Label(configframe, text="rtl_tcp Host:")
+        hostvarlabel.grid(column=0, row=0, padx=2, sticky=E)
+        hostvarentry = ttk.Entry(configframe, textvariable=self.hostvar)
+        hostvarentry.grid(column=1, row=0, sticky=W)
+
+        devicevarlabel = ttk.Label(configframe, text="Device ID:")
+        devicevarlabel.grid(column=0, row=1, padx=2, sticky=E)
+        devicevarentry = ttk.Entry(configframe, textvariable=self.devicevar)
+        devicevarentry.grid(column=1, row=1, sticky=W)
+
+        cachevarlabel = ttk.Label(configframe, text="Cache Logos:")
+        cachevarlabel.grid(column=0, row=2, padx=2, sticky=E)
+        cachevarbutton = ttk.Checkbutton(configframe,
+                                         text="Enable",
+                                         variable=self.cachevar,
+                                         onvalue=True,
+                                         offvalue=False)
+        cachevarbutton.grid(sticky=W, column=1, row=2)
+
+        savebutton = ttk.Button(configframe,
+                                text="Save",
+                                command=self.saveconfigwindow)
+        savebutton.grid(columnspan=2, column=0, row=4)
+
+        self.configwindow.protocol("WM_DELETE_WINDOW",
+                                   self.onconfigwindowclose)
+        self.configwindow.update()
+
+        xoffset = root.winfo_x() + (root.winfo_width()/2)
+        yoffset = root.winfo_y() + (root.winfo_height()/2)
+        configoffsetx = self.configwindow.winfo_width()/2
+        configoffsety = self.configwindow.winfo_height()/2
+        xpos = int(xoffset - configoffsetx)
+        ypos = int(yoffset - configoffsety)
+        self.configwindow.geometry(f"+{xpos}+{ypos}")
+        self.configwindow.focus()
+
+    def saveconfigwindow(self):
+        self.saveconfig()
+        self.onconfigwindowclose()
+
+    def onconfigwindowclose(self):
+        self.configwindow.destroy()
+        self.configwindow = None
 
     def freqreturn(self, event):
         self.play()
@@ -166,62 +255,76 @@ class MusicPlayer:
         titleparts.append(self.windowtitle)
         self.root.title(" - ".join(titleparts))
 
+    def updateinfo(self):
+        for id in self.infolabel:
+            self.infolabel[id].config(text=self.info[id])
+            self.infolabel[id].config(wraplength=self.infotext.winfo_width())
+            self.infolabel[id].update_idletasks()
+        self.updatewindowtitle()
+
     def settitle(self, input):
         self.info['title'] = input
-        self.infolabel['title'].config(text=input)
-        self.updatewindowtitle()
+        self.updateinfo()
 
     def setartist(self, input):
         self.info['artist'] = input
-        self.infolabel['artist'].config(text=input)
-        self.updatewindowtitle()
+        self.updateinfo()
 
     def setprogramname(self, input):
         self.info['program'] = input
-        self.infolabel['program'].config(text=input)
-        self.updatewindowtitle()
+        self.updateinfo()
 
     def setstationname(self, input):
         self.info['station'] = input
-        self.infolabel['station'].config(text=input)
-        self.updatewindowtitle()
+        self.updateinfo()
 
     def setslogan(self, input):
         self.info['slogan'] = input
-        self.infolabel['slogan'].config(text=input)
-        self.updatewindowtitle()
+        self.updateinfo()
 
-    def setalbumart(self, newalbumart):
-        self.root.img = ImageTk.PhotoImage(Image.open(newalbumart))
+    def setalbumart(self, img):
+        wwidth = self.albumartlabel.winfo_width() - 4
+        wheight = self.albumartlabel.winfo_height() - 4
+        dim = max(wwidth, wheight, 200)
+        self.root.img = ImageTk.PhotoImage(img.resize((dim, dim)))
         self.albumartlabel.configure(image=self.root.img)
+
+    def setalbumartfile(self, newalbumart):
+        img = Image.open(newalbumart)
+        self.setalbumart(img)
 
     def setalbumartdata(self, imagedata):
         if imagedata is not None:
-            self.root.img = ImageTk.PhotoImage(data=imagedata)
+            img = Image.open(io.BytesIO(imagedata))
         else:
-            self.root.img = self.defaultimage
-        self.albumartlabel.configure(image=self.root.img)
+            img = self.defaultimage
+        self.setalbumart(img)
 
     def setprogrambutton(self, id, name):
+        maxlength = 13
+        if name and len(name) > maxlength:
+            name = name[:maxlength - 3] + "..."
         self.programbtn[id].config(state="normal", text=name)
 
     def resetdisplay(self):
         for id in self.info:
             self.info[id] = None
         for id in self.infolabel:
-            self.infolabel[id].config(text=id)  #todo?
+            self.infolabel[id].config(text="")  #todo?
         self.root.img = self.defaultimage
-        self.albumartlabel.configure(image=self.root.img)
         for id in self.programbtn:
-            btntext = "Program", id + 1
+            btntext = "HD", id + 1
             self.programbtn[id].config(state="disabled", text=btntext)
         self.updatewindowtitle()
+        self.setalbumartdata(None)
 
     def setstatus(self, input, *args):
         self.status = input % args
         self.statuslabel.config(text=self.status)
+        self.statuslabel.update_idletasks()
 
     def setprogram(self, prog):
+        self.programvar.set(prog)
         self.player.setprogram(prog)
 
     def setvolume(self, event):
@@ -231,33 +334,45 @@ class MusicPlayer:
 
     def loadconfig(self):
         self.config.read('config.ini')
+        if 'frequency' in self.config['DEFAULT']:
+            self.freqvar.set(self.config['DEFAULT']['frequency'])
+        if 'program' in self.config['DEFAULT']:
+            self.programvar.set(self.config['DEFAULT']['program'])
         if 'volume' in self.config['DEFAULT']:
             self.volumevar.set(self.config['DEFAULT']['volume'])
             self.setvolume(None)
-        if 'frequency' in self.config['DEFAULT']:
-            self.freqvar.set(self.config['DEFAULT']['frequency'])
         if 'host' in self.config['DEFAULT']:
             self.hostvar.set(self.config['DEFAULT']['host'])
+        if 'cache' in self.config['DEFAULT']:
+            self.cachevar.set(self.config['DEFAULT']['cache'])
 
     def saveconfig(self):
         self.config['DEFAULT'] = {
+            'frequency': self.freqvar.get(),
+            'program': self.programvar.get(),
             'volume': self.volumevar.get(),
             'host': self.hostvar.get(),
-            'frequency': self.freqvar.get()
+            'device': self.devicevar.get(),
+            'cache': self.cachevar.get(),
         }
         with open('config.ini', 'w') as configfile:
             self.config.write(configfile)
 
     def play(self):
-        if self.freqvar.get():
-            if self.player.frequency != self.freqvar.get():
+        try:
+            freqvar = float(self.freqvar.get())
+        except ValueError:
+            return
+        if freqvar > 0 and self.player.frequency != freqvar:
+            if self.player.frequency > 0:
                 self.stop()
                 self.resetdisplay()
-
-            self.saveconfig()
-            self.player.setfrequency(self.freqvar.get())
-            if self.hostvar.get():
-                self.player.host = self.hostvar.get()
+                self.programvar.set(0)
+            self.player.setfrequency(freqvar)
+            self.player.program = self.programvar.get()
+            self.player.host = self.hostvar.get()
+            self.player.cachelogos = self.cachevar.get()
+            self.player.deviceid = self.devicevar.get()
             self.player.run()
 
     def stop(self):
@@ -273,5 +388,8 @@ class MusicPlayer:
 
 if __name__ == "__main__":
     root = Tk()
+    #root.tk.call("source", "azure.tcl")
+    #root.tk.call("set_theme", "light")
+    #root.tk.call('tk', 'scaling', 2)
     MusicPlayer(root)
     root.mainloop()
