@@ -239,6 +239,14 @@ class NRSC5player:
     def run(self):
         self.resetdata()
 
+        try:
+            freq = float(self.frequency)
+            if freq < 87.5 or freq > 107.9:  # TODO: AM?
+                raise ValueError
+        except ValueError:
+            self.ui.setstatus("Invalid frequency")
+            return
+
         self.aas_dir = os.path.join(sys.path[0], "aas")
         if self.cachelogos:
             if not os.path.isdir(self.aas_dir):
@@ -265,7 +273,6 @@ class NRSC5player:
             logging.info("Tuning %s", self.frequency)
             self.ui.setstatus("Tuning %s", self.frequency)
 
-            freq = float(self.frequency)
             if freq and freq < 10000:
                 freq *= 1e6
 
@@ -279,7 +286,7 @@ class NRSC5player:
             self.radio.start()
 
         except Exception as ex:
-            self.ui.setstatus("Error: %s", self.exceptioninfo(ex))
+            self.ui.setstatus("Error: %s", self.exceptioninfo(ex)) #TODO
 
     def stop(self):
         self.ui.setstatus("Stopping")
@@ -302,8 +309,8 @@ class NRSC5player:
                 self.audio_thread.join()
 
 
-        self.ui.setstatus("Stopped")
-        logging.info("Stopped")
+        self.ui.setstatus("Disconnected")
+        logging.info("Disconnected")
 
 
     def audio_worker(self):
@@ -351,19 +358,19 @@ class NRSC5player:
                         self.exceptioninfo(ex)
                         continue
                     else:
-                        if self.volume < 1:
-                            decodeddata = numpy.fromstring(
-                                samples, numpy.int16)
-                            newdata = (decodeddata * self.volume).astype(
-                                numpy.int16)
-                            stream.write(newdata.tostring())
-                        else:
-                            stream.write(samples)
-                            try:
+                        try:
+                            if self.volume < 1:
+                                decodeddata = numpy.fromstring(
+                                    samples, numpy.int16)
+                                newdata = (decodeddata * self.volume).astype(
+                                    numpy.int16)
+                                stream.write(newdata.tostring())
+                            else:
+                                stream.write(samples)
                                 self.audio_queues[self.program].task_done()
-                            except Exception as ex:
-                                self.exceptioninfo(ex)
-                                continue
+                        except Exception as ex:
+                            self.exceptioninfo(ex)
+                            continue
 
             stream.stop_stream()
             stream.close()
