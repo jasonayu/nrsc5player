@@ -371,11 +371,13 @@ class MusicPlayer:
             freqvar = float(self.freqvar.get())
         except ValueError:
             return
-        if self.player.frequency != freqvar:
-            if self.player.frequency > 0:
+        changefreq = self.player.frequency != freqvar
+        if changefreq or not self.player.playing:
+            if self.player.playing:
                 self.stop()
-                self.resetdisplay()
+            if changefreq and self.player.frequency != 0:
                 self.programvar.set(0)
+                self.resetdisplay()
             self.player.setfrequency(freqvar)
             self.player.program = self.programvar.get()
             self.player.host = self.hostvar.get()
