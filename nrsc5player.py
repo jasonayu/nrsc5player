@@ -34,7 +34,7 @@ class NRSC5player:
         self.resetdata()
         self.resetprograms()
 
-        self._playing = False
+        self.playing = False
 
     def resetprograms(self):
         self.program = 0
@@ -78,7 +78,7 @@ class NRSC5player:
             self.ui.setstatus("Lost synchronization")
 
         elif evt_type == nrsc5.EventType.AUDIO:
-            if self._playing:
+            if self.playing:
                 try:
                     self.audio_queues[evt.program].put(evt.data)
                 except Exception as ex:
@@ -257,7 +257,7 @@ class NRSC5player:
                     self.aas_dir = None
 
         try:
-            if self.host != None:
+            if self.host:
                 host = self.host
                 port = "1234"
                 if ':' in host:
@@ -278,7 +278,7 @@ class NRSC5player:
 
             self.radio.set_frequency(freq)
 
-            self._playing = True
+            self.playing = True
 
             self.audio_thread = threading.Thread(target=self.audio_worker)
             self.audio_thread.start()
@@ -286,13 +286,17 @@ class NRSC5player:
             self.radio.start()
 
         except Exception as ex:
-            self.ui.setstatus("Error: %s", self.exceptioninfo(ex)) #TODO
+            self.ui.setstatus("Error: %s", self.exceptioninfo(ex))
+            self.stop(True)
 
-    def stop(self):
-        self.ui.setstatus("Stopping")
+
+    def stop(self, *errorstatus):
+        if not errorstatus:
+            self.ui.setstatus("Stopping")
         logging.info("Stopping")
-        if self._playing == True:
-            self._playing = False
+
+        if self.playing == True:
+            self.playing = False
 
             try:
                 self.radio.stop()
@@ -308,8 +312,8 @@ class NRSC5player:
             if self.audio_thread != None:
                 self.audio_thread.join()
 
-
-        self.ui.setstatus("Disconnected")
+        if not errorstatus:
+            self.ui.setstatus("Disconnected")
         logging.info("Disconnected")
 
 
@@ -320,6 +324,7 @@ class NRSC5player:
             stream = audio.open(format=pyaudio.paInt16,
                                 channels=2,
                                 rate=44100,
+                                #frames_per_buffer=2048, #TODO? exe uses 8192?
                                 output_device_index=index,
                                 output=True)
         except Exception as ex:
@@ -327,11 +332,11 @@ class NRSC5player:
             stream = None
 
         if stream:
-            while self._playing:
+            while self.playing:
 
-                # cull inactive program buffers.  can we do this without checking every loop?
+                # cull inactive/full program buffers.  can we do this without checking every loop?
                 for id in self.audio_queues.keys():
-                    if id != self.program:
+                    if id != self.program or self.audio_queues[id].qsize() == self.bufferlength:
                         while self.audio_queues[id].qsize() > self.bufferthresh:
                             try:
                                 self.audio_queues[id].get(block=False)
@@ -345,9 +350,9 @@ class NRSC5player:
                                     self.exceptioninfo(ex)
                                     continue
 
-                #if not self.initialbuffer:
-                #    self.initialbuffer = self.audio_queues[self.program].qsize() >= self.bufferthresh
-                self.initialbuffer = True
+                if not self.initialbuffer:
+                    self.initialbuffer = self.audio_queues[self.program].qsize() >= 16
+                #self.initialbuffer = True
                 if self.initialbuffer:
                     try:
                         samples = self.audio_queues[self.program].get(block=False)
