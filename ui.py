@@ -3,7 +3,7 @@
 import tkinter as tk
 from tkinter import ttk
 from PIL import Image, ImageTk
-import nrsc5player
+import nrsc5service
 import configparser
 import io
 
@@ -172,7 +172,7 @@ class NRSC5Player:
         self.root.protocol("WM_DELETE_WINDOW", self.onclose)
         self.root.update()
 
-        self.player = nrsc5player.NRSC5service()
+        self.player = nrsc5service.NRSC5service()
         self.player.ui = self
 
         self.loadconfig()
