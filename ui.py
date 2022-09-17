@@ -172,8 +172,8 @@ class NRSC5Player:
         self.root.protocol("WM_DELETE_WINDOW", self.onclose)
         self.root.update()
 
-        self.player = nrsc5service.NRSC5service()
-        self.player.ui = self
+        self.service = nrsc5service.NRSC5service()
+        self.service.ui = self
 
         self.loadconfig()
         self.resetdisplay()
@@ -244,7 +244,7 @@ class NRSC5Player:
 
     def updatewindowtitle(self):
         titleparts = []
-        if self.player != None:
+        if self.service != None:
             if self.info['artist'] != None:
                 titleparts.append(self.info['artist'])
             if self.info['title'] != None:
@@ -328,12 +328,12 @@ class NRSC5Player:
 
     def setprogram(self, prog):
         self.programvar.set(prog)
-        self.player.setprogram(prog)
+        self.service.setprogram(prog)
 
     def setvolume(self, event):
         self.volumelabel.configure(text=self.volumevar.get())
-        if self.player:
-            self.player.setvolume(self.volumevar.get() * 0.01)
+        if self.service:
+            self.service.setvolume(self.volumevar.get() * 0.01)
 
     def loadconfig(self):
         self.config.read('config.ini')
@@ -366,22 +366,22 @@ class NRSC5Player:
             freqvar = float(self.freqvar.get())
         except ValueError:
             return
-        changefreq = self.player.frequency != freqvar
-        if changefreq or not self.player.playing:
-            if self.player.playing:
+        changefreq = self.service.frequency != freqvar
+        if changefreq or not self.service.playing:
+            if self.service.playing:
                 self.stop()
-            if changefreq and self.player.frequency != 0:
+            if changefreq and self.service.frequency != 0:
                 self.programvar.set(0)
                 self.resetdisplay()
-            self.player.setfrequency(freqvar)
-            self.player.program = self.programvar.get()
-            self.player.host = self.hostvar.get()
-            self.player.cachelogos = self.cachevar.get()
-            self.player.deviceid = self.devicevar.get()
-            self.player.run()
+            self.service.setfrequency(freqvar)
+            self.service.program = self.programvar.get()
+            self.service.host = self.hostvar.get()
+            self.service.cachelogos = self.cachevar.get()
+            self.service.deviceid = self.devicevar.get()
+            self.service.run()
 
     def stop(self):
-        self.player.stop()
+        self.service.stop()
         #self.resetdisplay()
         #self.updatewindowtitle()
 
