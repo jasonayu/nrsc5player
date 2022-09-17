@@ -1,25 +1,25 @@
 #!/usr/bin/env python3
 
-from tkinter import *
+import tkinter as tk
 from tkinter import ttk
 from PIL import Image, ImageTk
 import nrsc5player
 import configparser
 import io
 
-class MusicPlayer:
+class NRSC5Player:
 
     def __init__(self, root):
 
         self.root = root
 
         self.style = ttk.Style(self.root)
-        #self.style.theme_use("vista")
+        self.style.theme_use("clam")
 
         self.config = configparser.ConfigParser()
         self.configwindow = None
 
-        self.windowtitle = "NRSC5 HD Radio"
+        self.windowtitle = "NRSC5 Player"
 
         self.info = {}
         self.info['title'] = "title"
@@ -36,11 +36,9 @@ class MusicPlayer:
 
         self.defaultimage = Image.new('RGB', (200, 200), color='gray')
 
-        self.style.configure('Control.TFrame', background='blue')
-
         self.infosection = ttk.Frame(self.root, width=640, height=200)
 
-        self.albumartlabel = Label(self.infosection,
+        self.albumartlabel = ttk.Label(self.infosection,
                                    image=ImageTk.PhotoImage(self.defaultimage))
 
         self.infotext = ttk.Frame(self.infosection)
@@ -88,9 +86,6 @@ class MusicPlayer:
 
         self.controlsection = ttk.Frame(self.infosection)
 
-        controlfont = (ttk.Style().lookup("TButton", "font"), 12)
-        self.style.configure('control.TButton', font=controlfont)
-
         ttk.Button(self.controlsection,
                    text="Conf",
                    width=6,
@@ -101,7 +96,7 @@ class MusicPlayer:
         ttk.Label(self.tunerbar, text="Frequency:").pack(side="left",
                                                          fill="x",
                                                          padx=(0, 2))
-        self.freqvar = StringVar()
+        self.freqvar = tk.StringVar()
         freqentry = ttk.Spinbox(self.tunerbar,
                                 textvariable=self.freqvar,
                                 from_=87.5,
@@ -118,7 +113,7 @@ class MusicPlayer:
         self.tunerbar.pack(side="left", fill="x", padx=(0, 7))
 
         self.volumesection = ttk.Frame(self.controlsection)
-        self.volumevar = IntVar()
+        self.volumevar = tk.IntVar()
         self.volumevar.set(100)
         self.volumeslider = ttk.Scale(self.volumesection,
                                       from_=0,
@@ -141,12 +136,12 @@ class MusicPlayer:
         self.infosection.rowconfigure(1, weight=0)
         self.infosection.rowconfigure(2, weight=0)
 
-        self.albumartlabel.grid(rowspan=3, column=0, row=0, sticky=NSEW)
-        self.infotext.grid(column=1, row=0, sticky=EW)
-        self.programbar.grid(column=1, row=1, sticky=EW, padx=2)
-        self.controlsection.grid(column=1, row=2, sticky=S, padx=10, pady=2)
+        self.albumartlabel.grid(rowspan=3, column=0, row=0, sticky=tk.NSEW)
+        self.infotext.grid(column=1, row=0, sticky=tk.EW)
+        self.programbar.grid(column=1, row=1, sticky=tk.EW, padx=2)
+        self.controlsection.grid(column=1, row=2, sticky=tk.S, padx=10, pady=2)
 
-        self.popup_menu = Menu(self.root, tearoff=0)
+        self.popup_menu = tk.Menu(self.root, tearoff=0)
         self.popup_menu.add_command(label="Configuration",
                                     command=self.openconfigwindow)
         self.popup_menu.add_command(label="Exit", command=self.onclose)
@@ -157,10 +152,10 @@ class MusicPlayer:
         for child in self.infotext.winfo_children():
             child.bind("<Button-3>", self.popup)
 
-        self.programvar = IntVar()
-        self.hostvar = StringVar()
-        self.devicevar = IntVar()
-        self.cachevar = BooleanVar()
+        self.programvar = tk.IntVar()
+        self.hostvar = tk.StringVar()
+        self.devicevar = tk.IntVar()
+        self.cachevar = tk.BooleanVar()
 
         configbar = ttk.Frame(self.root)
 
@@ -169,15 +164,15 @@ class MusicPlayer:
         self.statusbar = ttk.Frame(self.root)
         self.statuslabel = ttk.Label(self.statusbar,
                                      text="Disconnected",
-                                     relief=SUNKEN,
-                                     anchor=W)
+                                     relief=tk.SUNKEN,
+                                     anchor=tk.W)
         self.statuslabel.pack(fill="both", expand=True)
         self.statusbar.pack(side="bottom", fill="x")
 
         self.root.protocol("WM_DELETE_WINDOW", self.onclose)
         self.root.update()
 
-        self.player = nrsc5player.NRSC5player()
+        self.player = nrsc5player.NRSC5service()
         self.player.ui = self
 
         self.loadconfig()
@@ -192,31 +187,31 @@ class MusicPlayer:
     def openconfigwindow(self):
         if self.configwindow is not None:
             return
-        self.configwindow = Toplevel(self.root)
+        self.configwindow = tk.Toplevel(self.root)
         self.configwindow.resizable(0, 0)
         self.configwindow.title("Configuration")
 
-        configframe = ttk.Frame(self.configwindow)
-        configframe.pack(padx=10, pady=10)
+        configframe = ttk.Frame(self.configwindow, borderwidth=10)
+        configframe.pack()
 
         hostvarlabel = ttk.Label(configframe, text="rtl_tcp Host:")
-        hostvarlabel.grid(column=0, row=0, padx=2, pady=2, sticky=E)
+        hostvarlabel.grid(column=0, row=0, padx=2, pady=2, sticky=tk.E)
         hostvarentry = ttk.Entry(configframe, textvariable=self.hostvar)
-        hostvarentry.grid(column=1, row=0, pady=2, sticky=W)
+        hostvarentry.grid(column=1, row=0, pady=2, sticky=tk.W)
 
         devicevarlabel = ttk.Label(configframe, text="Device ID:")
-        devicevarlabel.grid(column=0, row=1, padx=2, sticky=E)
+        devicevarlabel.grid(column=0, row=1, padx=2, sticky=tk.E)
         devicevarentry = ttk.Entry(configframe, textvariable=self.devicevar)
-        devicevarentry.grid(column=1, row=1, pady=2, sticky=W)
+        devicevarentry.grid(column=1, row=1, pady=2, sticky=tk.W)
 
         cachevarlabel = ttk.Label(configframe, text="Cache Logos:")
-        cachevarlabel.grid(column=0, row=2, padx=2, sticky=E)
+        cachevarlabel.grid(column=0, row=2, padx=2, sticky=tk.E)
         cachevarbutton = ttk.Checkbutton(configframe,
                                          text="Enable",
                                          variable=self.cachevar,
                                          onvalue=True,
                                          offvalue=False)
-        cachevarbutton.grid(column=1, row=2, pady=2, sticky=W)
+        cachevarbutton.grid(column=1, row=2, pady=2, sticky=tk.W)
 
         savebutton = ttk.Button(configframe,
                                 text="Save",
@@ -227,8 +222,8 @@ class MusicPlayer:
                                    self.onconfigwindowclose)
         self.configwindow.update()
 
-        xoffset = root.winfo_x() + (root.winfo_width() / 2)
-        yoffset = root.winfo_y() + (root.winfo_height() / 2)
+        xoffset = self.root.winfo_x() + (self.root.winfo_width() / 2)
+        yoffset = self.root.winfo_y() + (self.root.winfo_height() / 2)
         configoffsetx = self.configwindow.winfo_width() / 2
         configoffsety = self.configwindow.winfo_height() / 2
         xpos = int(xoffset - configoffsetx)
@@ -397,7 +392,7 @@ class MusicPlayer:
 
 
 if __name__ == "__main__":
-    root = Tk()
+    root = tk.Tk()
     #root.tk.call('tk', 'scaling', 1.0)
-    MusicPlayer(root)
+    NRSC5Player(root)
     root.mainloop()

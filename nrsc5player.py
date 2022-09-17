@@ -8,7 +8,7 @@ import nrsc5
 import sys
 
 
-class NRSC5player:
+class NRSC5service:
 
     def __init__(self):
         logging.basicConfig(level=20,
