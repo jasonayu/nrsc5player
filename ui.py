@@ -7,6 +7,7 @@ import nrsc5service
 import configparser
 import io
 
+
 class NRSC5Player:
 
     def __init__(self, root):
@@ -14,7 +15,7 @@ class NRSC5Player:
         self.root = root
 
         self.style = ttk.Style(self.root)
-        self.style.theme_use("clam")
+        #self.style.theme_use("clam")
 
         self.config = configparser.ConfigParser()
         self.configwindow = None
@@ -36,10 +37,11 @@ class NRSC5Player:
 
         self.defaultimage = Image.new('RGB', (200, 200), color='gray')
 
-        self.infosection = ttk.Frame(self.root, width=640, height=200)
+        self.infosection = ttk.Frame(self.root)  #, width=640, height=200)
 
         self.albumartlabel = ttk.Label(self.infosection,
-                                   image=ImageTk.PhotoImage(self.defaultimage))
+                                       image=ImageTk.PhotoImage(
+                                           self.defaultimage))
 
         self.infotext = ttk.Frame(self.infosection)
 
@@ -71,18 +73,10 @@ class NRSC5Player:
 
         self.programbar = ttk.Frame(self.infosection)
         self.programbtn = {}
-        self.programbtn[0] = ttk.Button(self.programbar,
-                                        command=lambda: self.setprogram(0))
-        self.programbtn[0].pack(padx=1, expand=True, fill="x", side="left")
-        self.programbtn[1] = ttk.Button(self.programbar,
-                                        command=lambda: self.setprogram(1))
-        self.programbtn[1].pack(padx=1, expand=True, fill="x", side="left")
-        self.programbtn[2] = ttk.Button(self.programbar,
-                                        command=lambda: self.setprogram(2))
-        self.programbtn[2].pack(padx=1, expand=True, fill="x", side="left")
-        self.programbtn[3] = ttk.Button(self.programbar,
-                                        command=lambda: self.setprogram(3))
-        self.programbtn[3].pack(padx=1, expand=True, fill="x", side="left")
+        for x in range(4):
+            self.programbtn[x] = ttk.Button(
+                self.programbar, command=lambda y=x: self.setprogram(y))
+            self.programbtn[x].pack(padx=1, expand=True, fill="x", side="left")
 
         self.controlsection = ttk.Frame(self.infosection)
 
@@ -144,6 +138,17 @@ class NRSC5Player:
         self.popup_menu = tk.Menu(self.root, tearoff=0)
         self.popup_menu.add_command(label="Configuration",
                                     command=self.openconfigwindow)
+
+        self.theme_menu = tk.Menu(self.root, tearoff=0)
+        self.popup_menu.add_cascade(label="Theme", menu=self.theme_menu)
+        self.themevar = tk.StringVar()
+        self.themevar.set(self.style.theme_use())
+        for theme_name in self.style.theme_names():
+            self.theme_menu.add_radiobutton(
+                label=theme_name,
+                command=self.settheme,
+                variable=self.themevar)
+
         self.popup_menu.add_command(label="Exit", command=self.onclose)
 
         self.infosection.bind("<Button-3>", self.popup)
@@ -238,6 +243,15 @@ class NRSC5Player:
     def onconfigwindowclose(self):
         self.configwindow.destroy()
         self.configwindow = None
+
+    def settheme(self):
+        try:
+            if self.themevar.get():
+                self.style.theme_use(self.themevar.get())
+            else:
+                self.themevar.set(self.style.theme_use())
+        finally:
+            return
 
     def freqreturn(self, event):
         self.play()
@@ -348,6 +362,9 @@ class NRSC5Player:
             self.hostvar.set(self.config['DEFAULT']['host'])
         if 'cache' in self.config['DEFAULT']:
             self.cachevar.set(self.config['DEFAULT']['cache'])
+        if 'theme' in self.config['DEFAULT']:
+            self.themevar.set(self.config['DEFAULT']['theme'])
+            self.settheme()
 
     def saveconfig(self):
         self.config['DEFAULT'] = {
@@ -357,6 +374,7 @@ class NRSC5Player:
             'host': self.hostvar.get(),
             'device': self.devicevar.get(),
             'cache': self.cachevar.get(),
+            'theme': self.themevar.get(),
         }
         with open('config.ini', 'w') as configfile:
             self.config.write(configfile)
