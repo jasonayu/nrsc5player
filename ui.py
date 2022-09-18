@@ -31,8 +31,6 @@ class NRSC5Player:
         self.status = None
 
         self.root.title(self.windowtitle)
-        #self.root.geometry("640x225")
-        self.root.geometry("")
         self.root.resizable(0, 0)
 
         self.defaultimage = Image.new('RGB', (200, 200), color='gray')
@@ -175,13 +173,21 @@ class NRSC5Player:
         self.statusbar.pack(side="bottom", fill="x")
 
         self.root.protocol("WM_DELETE_WINDOW", self.onclose)
-        self.root.update()
 
         self.service = nrsc5service.NRSC5service()
         self.service.ui = self
 
         self.loadconfig()
         self.resetdisplay()
+
+        self.root.update()
+        xscreen = self.root.winfo_screenwidth() / 2
+        yscreen = self.root.winfo_screenheight() / 2.5
+        xwindow = self.root.winfo_reqwidth() / 2
+        ywindow = self.root.winfo_reqheight() / 2
+        xpos = int(xscreen - xwindow)
+        ypos = int(yscreen - ywindow)
+        self.root.geometry(f"+{xpos}+{ypos}")
 
     def popup(self, event):
         try:
@@ -229,10 +235,10 @@ class NRSC5Player:
 
         xoffset = self.root.winfo_x() + (self.root.winfo_width() / 2)
         yoffset = self.root.winfo_y() + (self.root.winfo_height() / 2)
-        configoffsetx = self.configwindow.winfo_width() / 2
-        configoffsety = self.configwindow.winfo_height() / 2
-        xpos = int(xoffset - configoffsetx)
-        ypos = int(yoffset - configoffsety)
+        xconfig = self.configwindow.winfo_width() / 2
+        yconfig = self.configwindow.winfo_height() / 2
+        xpos = int(xoffset - xconfig)
+        ypos = int(yoffset - yconfig)
         self.configwindow.geometry(f"+{xpos}+{ypos}")
         self.configwindow.focus()
 
