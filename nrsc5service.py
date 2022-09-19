@@ -180,11 +180,11 @@ class NRSC5service:
             if evt.name and self.station != evt.name:
                 self.station = evt.name
                 self.ui.setstationname(evt.name)
-                logging.info("Station name: %s", evt.name)
+                #logging.info("Station name: %s", evt.name)
             if evt.slogan and self.slogan != evt.slogan:
                 self.slogan = evt.slogan
                 self.ui.setslogan(evt.slogan)
-                logging.info("Slogan: %s", evt.slogan)
+                #logging.info("Slogan: %s", evt.slogan)
 
     def setprogram(self, programindex):
         if programindex != self.program and programindex in self.programs:
