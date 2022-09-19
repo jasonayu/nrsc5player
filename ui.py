@@ -6,6 +6,8 @@ from PIL import Image, ImageTk
 import nrsc5service
 import configparser
 import io
+import os
+import sys
 
 
 class NRSC5Player:
@@ -18,6 +20,7 @@ class NRSC5Player:
         #self.style.theme_use("clam")
 
         self.config = configparser.ConfigParser()
+        self.configpath = os.path.join(os.path.dirname(sys.path[0]), "config.ini")
         self.configwindow = None
 
         self.windowtitle = "NRSC5 Player"
@@ -88,7 +91,7 @@ class NRSC5Player:
         ttk.Label(self.tunerbar, text="Frequency:").pack(side="left",
                                                          fill="x",
                                                          padx=(0, 2))
-        self.freqvar = tk.StringVar()
+        self.freqvar = tk.DoubleVar(master=self.tunerbar, value=87.5)
         freqentry = ttk.Spinbox(self.tunerbar,
                                 textvariable=self.freqvar,
                                 from_=87.5,
@@ -356,7 +359,7 @@ class NRSC5Player:
             self.service.setvolume(self.volumevar.get() * 0.01)
 
     def loadconfig(self):
-        self.config.read('config.ini')
+        self.config.read(self.configpath)
         if 'frequency' in self.config['DEFAULT']:
             self.freqvar.set(self.config['DEFAULT']['frequency'])
         if 'program' in self.config['DEFAULT']:
@@ -382,13 +385,14 @@ class NRSC5Player:
             'cache': self.cachevar.get(),
             'theme': self.themevar.get(),
         }
-        with open('config.ini', 'w') as configfile:
+        with open(self.configpath, 'w') as configfile:
             self.config.write(configfile)
 
     def play(self):
         try:
             freqvar = float(self.freqvar.get())
-        except ValueError:
+        except Exception:
+            self.setstatus("Invalid frequency")
             return
         changefreq = self.service.frequency != freqvar
         if changefreq or not self.service.playing:

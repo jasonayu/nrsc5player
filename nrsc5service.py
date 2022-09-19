@@ -247,7 +247,7 @@ class NRSC5service:
             self.ui.setstatus("Invalid frequency")
             return
 
-        self.aas_dir = os.path.join(sys.path[0], "aas")
+        self.aas_dir = os.path.join(os.path.dirname(sys.path[0]), "aas")
         if self.cachelogos:
             if not os.path.isdir(self.aas_dir):
                 try:
