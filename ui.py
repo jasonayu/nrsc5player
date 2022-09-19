@@ -20,7 +20,8 @@ class NRSC5Player:
         #self.style.theme_use("clam")
 
         self.config = configparser.ConfigParser()
-        self.configpath = os.path.join(os.path.dirname(sys.path[0]), "config.ini")
+        self.configpath = os.path.join(os.path.dirname(sys.path[0]),
+                                       "config.ini")
         self.configwindow = None
 
         self.windowtitle = "NRSC5 Player"
@@ -145,10 +146,9 @@ class NRSC5Player:
         self.themevar = tk.StringVar()
         self.themevar.set(self.style.theme_use())
         for theme_name in self.style.theme_names():
-            self.theme_menu.add_radiobutton(
-                label=theme_name,
-                command=self.settheme,
-                variable=self.themevar)
+            self.theme_menu.add_radiobutton(label=theme_name,
+                                            command=self.settheme,
+                                            variable=self.themevar)
 
         self.popup_menu.add_command(label="Exit", command=self.onclose)
 
