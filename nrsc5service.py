@@ -67,15 +67,15 @@ class NRSC5service:
 
         if evt_type == nrsc5.EventType.LOST_DEVICE:
             logging.info("Lost device")
-            self.ui.setstatus("Lost device")
+            #self.ui.setstatus("Lost device")
             with self.device_condition:
                 self.device_condition.notify()
         elif evt_type == nrsc5.EventType.SYNC:
             logging.info("Synchronized")
-            self.ui.setstatus("Synchronized")
+            #self.ui.setstatus("Synchronized")
         elif evt_type == nrsc5.EventType.LOST_SYNC:
             logging.info("Lost synchronization")
-            self.ui.setstatus("Lost synchronization")
+            #self.ui.setstatus("Lost synchronization")
 
         elif evt_type == nrsc5.EventType.AUDIO:
             if self.playing:
@@ -247,7 +247,11 @@ class NRSC5service:
             self.ui.setstatus("Invalid frequency")
             return
 
-        self.aas_dir = os.path.join(os.path.dirname(sys.path[0]), "aas")
+        if hasattr(sys, 'frozen'):
+            basedir = os.path.dirname(sys.executable)
+        else:
+            basedir = sys.path[0]
+        self.aas_dir = os.path.join(basedir, "aas")
         if self.cachelogos:
             if not os.path.isdir(self.aas_dir):
                 try:

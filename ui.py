@@ -20,8 +20,11 @@ class NRSC5Player:
         #self.style.theme_use("clam")
 
         self.config = configparser.ConfigParser()
-        self.configpath = os.path.join(os.path.dirname(sys.path[0]),
-                                       "config.ini")
+        if hasattr(sys, 'frozen'):
+            basedir = os.path.dirname(sys.executable)
+        else:
+            basedir = sys.path[0]
+        self.configpath = os.path.join(basedir, "config.ini")
         self.configwindow = None
 
         self.windowtitle = "NRSC5 Player"
