@@ -1,4 +1,6 @@
 #!/usr/bin/env python3
+# NRSC5 Player
+# Copyright (c) 2022 Jason Yu
 
 import tkinter as tk
 from tkinter import ttk
@@ -216,7 +218,7 @@ class NRSC5Player:
         hostvarentry = ttk.Entry(configframe, textvariable=self.hostvar)
         hostvarentry.grid(column=1, row=0, pady=2, sticky=tk.W)
 
-        devicevarlabel = ttk.Label(configframe, text="Device ID:")
+        devicevarlabel = ttk.Label(configframe, text="Device Index:")
         devicevarlabel.grid(column=0, row=1, padx=2, sticky=tk.E)
         devicevarentry = ttk.Entry(configframe, textvariable=self.devicevar)
         devicevarentry.grid(column=1, row=1, pady=2, sticky=tk.W)

@@ -1,3 +1,6 @@
+# NRSC5 Player
+# Copyright (c) 2022 Jason Yu
+
 import logging
 import os
 import queue
