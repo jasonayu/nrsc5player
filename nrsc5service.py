@@ -9,7 +9,8 @@ import pyaudio
 import numpy
 import nrsc5
 import sys
-
+from collections import defaultdict
+import re
 
 class NRSC5service:
 
@@ -54,6 +55,10 @@ class NRSC5service:
         self.logos = {}
         self.logoportmap = {}
         self.imageportmap = {}
+        self.weatherport = None
+        self.weatherimage = None
+        self.trafficport = None
+        self.trafficimage = defaultdict(dict)
         self.id3 = {}
         self.albumart = {}
         self.station = None
@@ -153,6 +158,20 @@ class NRSC5service:
                         self.ui.setprogramname(service.name)
                         self.updatealbumart(index)
 
+                elif service.type == nrsc5.ServiceType.DATA:
+                    for component in service.components:
+                        if component.type == nrsc5.ComponentType.DATA:
+                            if component.data.mime == nrsc5.MIMEType.TTN_STM_TRAFFIC:
+                                self.trafficport = component.data.port
+                                break
+                            elif component.data.mime == nrsc5.MIMEType.TTN_STM_WEATHER:
+                                self.weatherport = component.data.port
+                                break
+                            #logging.info("  Data component: id=%s port=%04X service_data_type=%s type=%s mime=%s",
+                            #            component.id, component.data.port,
+                            #            component.data.service_data_type,
+                            #            component.data.type, component.data.mime)
+
         elif evt_type == nrsc5.EventType.LOT:
             #logging.info("LOT file: port=%04X lot=%s name=%s size=%s mime=%s",
             #             evt.port, evt.lot, evt.name, len(evt.data), evt.mime)
@@ -175,6 +194,25 @@ class NRSC5service:
                 programindex = self.imageportmap[evt.port]
                 if evt.lot not in self.albumart:  #probably don't need to set more than once
                     self.albumart[evt.lot] = evt.data
+
+            elif evt.port == self.trafficport:
+                if evt.name.startswith("TMT_"):
+                    regex = re.compile(r"^TMT_.*_([1-3])_([1-3])_(\d{8}_\d{4}).*$")
+                    match = regex.match(evt.name)
+                    row = int(match.group(1))-1
+                    col = int(match.group(2))-1
+                    self.ui.settrafficimagepart(evt.data, row, col)
+
+            elif evt.port == self.weatherport:
+                if evt.name.startswith("DWRO_"):
+                    self.weatherimage = evt.data
+
+            #else:
+            #    logging.info("LOT file: port=%04X lot=%s name=%s size=%s mime=%s",
+            #             evt.port, evt.lot, evt.name, len(evt.data), evt.mime)
+            #    path = os.path.join(self.aas_dir, evt.name)
+            #    with open(path, "wb") as file:
+            #        file.write(evt.data)
 
             if programindex is not None and programindex == self.program:
                 self.updatealbumart(self.program)

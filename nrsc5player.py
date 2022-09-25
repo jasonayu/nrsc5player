@@ -10,6 +10,7 @@ import configparser
 import io
 import os
 import sys
+from collections import defaultdict
 
 
 class NRSC5Player:
@@ -155,6 +156,11 @@ class NRSC5Player:
                                             command=self.settheme,
                                             variable=self.themevar)
 
+        self.trafficmenuitem = self.popup_menu.add_command(
+            label="Traffic Map",
+            command=self.opentrafficwindow,
+            state="disabled")
+
         self.popup_menu.add_command(label="Exit", command=self.onclose)
 
         self.infosection.bind("<Button-3>", self.popup)
@@ -185,6 +191,10 @@ class NRSC5Player:
         self.service = nrsc5service.NRSC5service()
         self.service.ui = self
 
+        self.trafficimage = defaultdict(dict)
+        self.trafficimageparts = defaultdict(dict)
+        self.trafficwindow = None
+
         self.loadconfig()
         self.resetdisplay()
 
@@ -202,6 +212,52 @@ class NRSC5Player:
             self.popup_menu.tk_popup(event.x_root, event.y_root, 0)
         finally:
             self.popup_menu.grab_release()
+
+    def opentrafficwindow(self):
+        if self.trafficwindow is not None:
+            return
+        self.trafficwindow = tk.Toplevel(self.root)
+        self.trafficwindow.resizable(0, 0)
+        self.trafficwindow.title("Traffic - " + self.windowtitle)
+        trafficframe = ttk.Frame(self.trafficwindow)
+        trafficframe.pack()
+
+        self.newimg = ImageTk.PhotoImage(
+            Image.new('RGB', (200, 200), color=(194, 187, 96)))
+        for row in range(3):
+            for col in range(3):
+                self.trafficimage[row][col] = tk.Label(trafficframe,
+                                                       borderwidth=0,
+                                                       image=self.newimg)
+                self.trafficimage[row][col].grid(column=col,
+                                                 row=row,
+                                                 padx=0,
+                                                 pady=0)
+
+        self.trafficwindow.protocol("WM_DELETE_WINDOW",
+                                    self.ontrafficwindowclose)
+        self.updatetrafficimage()
+
+    def ontrafficwindowclose(self):
+        if self.trafficwindow:
+            self.trafficwindow.destroy()
+        self.trafficwindow = None
+
+    def settrafficimagepart(self, data, row, col):
+        img = Image.open(io.BytesIO(data))
+        self.trafficimageparts[row][col] = ImageTk.PhotoImage(img)
+        self.popup_menu.entryconfig("Traffic Map", state="normal")
+        self.updatetrafficimage()
+
+    def updatetrafficimage(self):
+        if self.trafficwindow is not None:
+            for row in range(3):
+                for col in range(3):
+                    try:
+                        self.trafficimage[row][col].configure(
+                            image=self.trafficimageparts[row][col])
+                    except:
+                        continue
 
     def openconfigwindow(self):
         if self.configwindow is not None:
@@ -255,7 +311,8 @@ class NRSC5Player:
         self.onconfigwindowclose()
 
     def onconfigwindowclose(self):
-        self.configwindow.destroy()
+        if self.configwindow:
+            self.configwindow.destroy()
         self.configwindow = None
 
     def settheme(self):
@@ -317,8 +374,8 @@ class NRSC5Player:
         wwidth = self.albumartlabel.winfo_width() - 4
         wheight = self.albumartlabel.winfo_height() - 4
         dim = max(wwidth, wheight, 200)
-        self.root.img = ImageTk.PhotoImage(img.resize((dim, dim)))
-        self.albumartlabel.configure(image=self.root.img)
+        self.albumart = ImageTk.PhotoImage(img.resize((dim, dim)))
+        self.albumartlabel.configure(image=self.albumart)
 
     def setalbumartfile(self, newalbumart):
         img = Image.open(newalbumart)
@@ -342,12 +399,13 @@ class NRSC5Player:
             self.info[id] = None
         for id in self.infolabel:
             self.infolabel[id].config(text="")  #todo?
-        self.root.img = self.defaultimage
         for id in self.programbtn:
             btntext = "HD", id + 1
             self.programbtn[id].config(state="disabled", text=btntext)
         self.updatewindowtitle()
         self.setalbumartdata(None)
+        self.ontrafficwindowclose()
+        self.popup_menu.entryconfig("Traffic Map", state="disabled")
 
     def setstatus(self, input, *args):
         self.status = input % args
