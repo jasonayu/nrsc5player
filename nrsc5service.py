@@ -10,7 +10,6 @@ import numpy
 import nrsc5
 import sys
 from collections import defaultdict
-import re
 
 class NRSC5service:
 
@@ -197,15 +196,18 @@ class NRSC5service:
 
             elif evt.port == self.trafficport:
                 if evt.name.startswith("TMT_"):
-                    regex = re.compile(r"^TMT_.*_([1-3])_([1-3])_(\d{8}_\d{4}).*$")
-                    match = regex.match(evt.name)
-                    row = int(match.group(1))-1
-                    col = int(match.group(2))-1
+                    spl = evt.name.split("_")
+                    row = int(spl[2])-1
+                    col = int(spl[3])-1
                     self.ui.settrafficimagepart(evt.data, row, col)
 
             elif evt.port == self.weatherport:
                 if evt.name.startswith("DWRO_"):
                     self.weatherimage = evt.data
+                #elif evt.name.startswith("DWRO_") and evt.name.endswith(".txt"):
+                #    confstring = evt.data.decode()
+                #    for line in confstring.splitlines():
+                #        print(line)
 
             #else:
             #    logging.info("LOT file: port=%04X lot=%s name=%s size=%s mime=%s",
