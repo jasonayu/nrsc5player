@@ -425,8 +425,10 @@ class NRSC5Player:
         self.config.read(self.configpath)
         if 'frequency' in self.config['DEFAULT']:
             self.freqvar.set(self.config['DEFAULT']['frequency'])
+            self.service.setfrequency(self.freqvar.get())
         if 'program' in self.config['DEFAULT']:
             self.programvar.set(self.config['DEFAULT']['program'])
+            self.service.program = self.programvar.get()
         if 'volume' in self.config['DEFAULT']:
             self.volumevar.set(self.config['DEFAULT']['volume'])
             self.setvolume(None)
@@ -453,7 +455,7 @@ class NRSC5Player:
 
     def play(self):
         try:
-            freqvar = float(self.freqvar.get())
+            freqvar = self.freqvar.get()
         except Exception:
             self.setstatus("Invalid frequency")
             return
