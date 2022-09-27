@@ -12,7 +12,7 @@ A Python-based graphical frontend for [nrsc5](https://github.com/theori-io/nrsc5
 - nrsc5
 
 ## Setup
-Install Python depdendencies.  In Ubuntu most if not all of these can be found in the package manager.
+Install Python dependencies.  In Ubuntu most if not all of these can be found in the package manager.
 
 Compile and install [nrsc5](https://github.com/theori-io/nrsc5/).  Windows: place libnrsc5.dll in C:\Windows\System32 or the root directory of this repository.
 
@@ -32,7 +32,7 @@ Click on the "Conf" button or right click anywhere on the player window and sele
 - Device Index: Change this if you have more than one device connected and want to specify which.
 - Cache Logos: Station logos are transmitted only periodically, which means an unlucky user may see them only after a delay if at all.  Enable this option to store logos locally for re-use.
 
-Directory must be writeable in order to store logos and config settings.
+Directory must be writable in order to store logos and config settings.
 
 ## Themes
 ![themes](https://user-images.githubusercontent.com/4991794/191288963-7bd3a623-85b0-491f-a0d9-9593827948f4.png)
